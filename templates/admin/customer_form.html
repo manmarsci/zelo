@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Add New Customer</h1>
+<form method="post" class="admin-form">
+  <div class="form-row-2">
+    <div>
+      <label>Full Name *</label>
+      <input type="text" name="name" required />
+    </div>
+    <div>
+      <label>Email *</label>
+      <input type="email" name="email" required />
+    </div>
+  </div>
+  <div class="form-row-2">
+    <div>
+      <label>Phone Number</label>
+      <input type="tel" name="phone" />
+    </div>
+    <div>
+      <label>Initial Password</label>
+      <input type="text" name="password" value="customer123" placeholder="Default: customer123" />
+      <small class="muted">Customer can change this after first login</small>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Add Customer</button>
+    <a href="{{ url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-label">Products</div><div class="stat-value">{{ stats.products }}</div></div>
+  <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value">{{ stats.orders }}</div></div>
+  <div class="stat-card"><div class="stat-label">Customers</div><div class="stat-value">{{ stats.customers }}</div></div>
+  <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">PKR {{ "%.0f"|format(stats.revenue) }}</div></div>
+  <div class="stat-card warn"><div class="stat-label">Pending Orders</div><div class="stat-value">{{ stats.pending }}</div></div>
+</div>
+
+<div class="admin-grid-2">
+  <div>
+    <h3>Recent Orders</h3>
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for o in recent_orders %}
+          <tr>
+            <td>{{ o.order_number[-6:] }}</td>
+            <td>{{ o.guest_name or o.user_id }}</td>
+            <td>PKR {{ "%.0f"|format(o.total) }}</td>
+            <td><span class="status-pill status-{{ o.status|lower }}">{{ o.status }}</span></td>
+            <td><a href="{{ url_for('order_detail', order_number=o.order_number) }}">View</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>Low Stock Alert</h3>
+    <table class="admin-table">
+      <thead><tr><th>Product</th><th>Stock</th></tr></thead>
+      <tbody>
+        {% for p in low_stock %}
+          <tr><td>{{ p.name }}</td><td class="text-warn">{{ p.stock }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

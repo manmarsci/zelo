@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Customers</h1>
+<table class="admin-table">
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead>
+  <tbody>
+    {% for c in customers %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.email }}</td>
+        <td>{{ c.phone or '-' }}</td>
+        <td>{{ c.created_at }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

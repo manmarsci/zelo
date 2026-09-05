@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}My Orders{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1>My Orders</h1>
+    {% if orders %}
+      <div class="orders-list">
+        {% for o in orders %}
+          <a href="{{ url_for('order_detail', order_number=o.order_number) }}" class="order-card">
+            <div>
+              <strong>#{{ o.order_number }}</strong><br/>
+              <span class="muted small">{{ o.created_at }}</span>
+            </div>
+            <div>PKR {{ "%.0f"|format(o.total) }}</div>
+            <div><span class="status-pill status-{{ o.status|lower }}">{{ o.status }}</span></div>
+            <div>View →</div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty">No orders yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

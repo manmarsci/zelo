@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="admin-head">
+  <h1>Products</h1>
+  <a href="{{ url_for('admin_product_form') }}" class="btn btn-primary">+ Add Product</a>
+</div>
+<table class="admin-table">
+  <thead><tr><th>Image</th><th>Name</th><th>Brand</th><th>Price</th><th>Stock</th><th>Flags</th><th></th></tr></thead>
+  <tbody>
+    {% for p in products %}
+      <tr>
+        <td><img src="{{ p.image or 'https://via.placeholder.com/60' }}" width="50" /></td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.brand_name }}</td>
+        <td>
+          {% if p.sale_price %}<s>PKR {{ "%.0f"|format(p.original_price) }}</s> PKR {{ "%.0f"|format(p.sale_price) }}
+          {% else %}PKR {{ "%.0f"|format(p.original_price) }}{% endif %}
+        </td>
+        <td>{{ p.stock }}</td>
+        <td>
+          {% if p.is_new_arrival %}<span class="tag">New</span>{% endif %}
+          {% if p.is_popular %}<span class="tag">Popular</span>{% endif %}
+          {% if p.is_sale %}<span class="tag sale">Sale</span>{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('admin_product_form', pid=p.id) }}">Edit</a> |
+          <form method="post" action="{{ url_for('admin_product_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this product?')">
+            <button class="btn-link text-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

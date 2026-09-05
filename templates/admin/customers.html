@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="admin-head">
+  <h1>Customers</h1>
+  <a href="{{ url_for('admin_customer_add') }}" class="btn btn-primary">+ Add Customer</a>
+</div>
+<table class="admin-table">
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead>
+  <tbody>
+    {% for c in customers %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.email }}</td>
+        <td>{{ c.phone or '-' }}</td>
+        <td>{{ c.created_at }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

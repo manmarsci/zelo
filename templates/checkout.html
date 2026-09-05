@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1>Checkout</h1>
+    <form method="post" class="checkout-layout">
+      <div class="checkout-form">
+        <h3>Contact {% if not user %}(Guest Checkout){% endif %}</h3>
+        {% if not user %}
+          <div class="form-row">
+            <input type="text" name="guest_name" placeholder="Full Name *" required />
+          </div>
+          <div class="form-row-2">
+            <input type="email" name="guest_email" placeholder="Email *" required />
+            <input type="tel" name="guest_phone" placeholder="Mobile Number *" required />
+          </div>
+        {% endif %}
+
+        <h3>Delivery Address</h3>
+        {% if addresses %}
+          <div class="saved-addresses">
+            {% for a in addresses %}
+              <label class="address-card">
+                <input type="radio" name="use_address" value="{{ a.id }}" onclick="fillAddress(this)" data-name="{{ a.full_name }}" data-phone="{{ a.phone }}" data-address="{{ a.address }}" data-city="{{ a.city }}" data-province="{{ a.province }}" data-postal="{{ a.postal_code }}" />
+                <div>
+                  <strong>{{ a.full_name }}</strong> — {{ a.phone }}<br/>
+                  {{ a.address }}, {{ a.city }}, {{ a.province }} {{ a.postal_code }}
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="form-row">
+          <input type="text" name="shipping_name" placeholder="Full Name *" required />
+        </div>
+        <div class="form-row">
+          <input type="tel" name="shipping_phone" placeholder="Mobile Number *" required />
+        </div>
+        <div class="form-row">
+          <textarea name="shipping_address" placeholder="Complete Address (House/Street/Area) *" required></textarea>
+        </div>
+        <div class="form-row-3">
+          <input type="text" name="shipping_city" placeholder="City *" required />
+          <select name="shipping_province" required>
+            <option value="">Province *</option>
+            <option>Punjab</option><option>Sindh</option><option>KPK</option>
+            <option>Balochistan</option><option>Islamabad</option><option>Gilgit-Baltistan</option>
+            <option>AJK</option>
+          </select>
+          <input type="text" name="shipping_postal" placeholder="Postal Code" />
+        </div>
+
+        <h3>Payment Method</h3>
+        <div class="payment-method-box">
+          <label class="pay-option">
+            <input type="radio" name="payment_method" value="JazzCash" checked />
+            <div>
+              <strong>💳 JazzCash</strong><br/>
+              <small class="muted">Pay via JazzCash and upload payment proof</small>
+            </div>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="payment_method" value="COD" />
+            <div>
+              <strong>💵 Cash on Delivery</strong><br/>
+              <small class="muted">Pay when you receive your order</small>
+            </div>
+          </label>
+        </div>
+
+        <h3>Coupon Code</h3>
+        <div class="coupon-row">
+          <input type="text" name="coupon_code" placeholder="Enter code (e.g. WELCOME10)" value="{{ coupon_code|default('') }}" />
+        </div>
+      </div>
+
+      <aside class="cart-summary">
+        <h3>Order Summary</h3>
+        {% for it in items %}
+          <div class="summary-item">
+            <div>
+              <div class="small">{{ it.name }} × {{ it.quantity }}</div>
+              {% if it.size or it.color %}<div class="muted small">{{ it.size }} {{ it.color }}</div>{% endif %}
+            </div>
+            <div>PKR {{ "%.0f"|format((it.sale_price or it.original_price) * it.quantity) }}</div>
+          </div>
+        {% endfor %}
+        <hr/>
+        <div class="summary-row"><span>Subtotal</span><span>PKR {{ "%.0f"|format(subtotal) }}</span></div>
+        <div class="summary-row"><span>Delivery</span><span>{% if delivery == 0 %}FREE{% else %}PKR {{ "%.0f"|format(delivery) }}{% endif %}</span></div>
+        {% if discount > 0 %}<div class="summary-row text-ok"><span>Discount</span><span>-PKR {{ "%.0f"|format(discount) }}</span></div>{% endif %}
+        <div class="summary-row total"><span>Total</span><span>PKR {{ "%.0f"|format(total) }}</span></div>
+        <button type="submit" class="btn btn-primary btn-block">Place Order</button>
+        <p class="muted small">By placing this order you agree to our Terms of Service.</p>
+      </aside>
+    </form>
+  </div>
+</section>
+
+<script>
+function fillAddress(radio) {
+  const d = radio.dataset;
+  document.querySelector('[name=shipping_name]').value = d.name;
+  document.querySelector('[name=shipping_phone]').value = d.phone;
+  document.querySelector('[name=shipping_address]').value = d.address;
+  document.querySelector('[name=shipping_city]').value = d.city;
+  document.querySelector('[name=shipping_province]').value = d.province;
+  document.querySelector('[name=shipping_postal]').value = d.postal;
+}
+</script>
+{% endblock %}

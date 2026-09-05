@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Shopping Cart{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1>Shopping Cart</h1>
+
+    {% if items %}
+      <div class="cart-layout">
+        <div class="cart-items">
+          {% for it in items %}
+            <div class="cart-item">
+              <img src="{{ it.image or 'https://via.placeholder.com/120' }}" alt="{{ it.name }}" />
+              <div class="cart-item-info">
+                <a href="{{ url_for('product_detail', slug=it.slug) }}"><strong>{{ it.name }}</strong></a>
+                <div class="muted">
+                  {% if it.size %}Size: {{ it.size }}{% endif %}
+                  {% if it.color %} • Color: {{ it.color }}{% endif %}
+                </div>
+                <div class="price-line">
+                  PKR {{ "%.0f"|format(it.sale_price or it.original_price) }}
+                </div>
+              </div>
+              <form method="post" action="{{ url_for('cart_update', cart_id=it.cart_id) }}" class="qty-selector">
+                <button type="button" onclick="this.form.querySelector('input').stepDown(); this.form.submit()">−</button>
+                <input type="number" name="quantity" value="{{ it.quantity }}" min="1" max="{{ it.stock }}" />
+                <button type="button" onclick="this.form.querySelector('input').stepUp(); this.form.submit()">+</button>
+              </form>
+              <div class="cart-item-total">
+                PKR {{ "%.0f"|format((it.sale_price or it.original_price) * it.quantity) }}
+              </div>
+              <form method="post" action="{{ url_for('cart_remove', cart_id=it.cart_id) }}">
+                <button type="submit" class="btn-link text-danger" title="Remove">✕</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+
+        <aside class="cart-summary">
+          <h3>Order Summary</h3>
+          <div class="summary-row"><span>Subtotal</span><span>PKR {{ "%.0f"|format(subtotal) }}</span></div>
+          <div class="summary-row"><span>Delivery</span><span>{% if delivery == 0 %}FREE{% else %}PKR {{ "%.0f"|format(delivery) }}{% endif %}</span></div>
+          {% if delivery == 0 %}<p class="muted small">🎉 You qualified for free delivery!</p>{% endif %}
+          <div class="summary-row total"><span>Total</span><span>PKR {{ "%.0f"|format(total) }}</span></div>
+          <a href="{{ url_for('checkout') }}" class="btn btn-primary btn-block">Proceed to Checkout</a>
+          <a href="{{ url_for('products') }}" class="btn btn-outline btn-block">Continue Shopping</a>
+        </aside>
+      </div>
+    {% else %}
+      <p class="empty">Your cart is empty.</p>
+      <a href="{{ url_for('products') }}" class="btn btn-primary">Start Shopping</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

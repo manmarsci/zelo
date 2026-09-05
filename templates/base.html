@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}ZELO LIVE BOUTIQUE{% endblock %}</title>
+  <meta name="description" content="Premium brand leftover unstitched suits, laces & patches at unbeatable prices." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <!-- Announcement bar -->
+  <div class="announcement">
+    ✨ Free delivery on orders above PKR 3000 • Brand Leftovers at Unbeatable Prices
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <button class="menu-toggle" aria-label="Menu">☰</button>
+      <a href="{{ url_for('index') }}" class="logo">
+        <span class="logo-mark">Z</span>
+        <span class="logo-text">ZELO LIVE<br><small>BOUTIQUE</small></span>
+      </a>
+      <nav class="nav" id="mainNav">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('products', sort='newest') }}">New Arrivals</a>
+        <a href="{{ url_for('products', sort='discount') }}">Sale</a>
+        <a href="{{ url_for('products') }}">Shop All</a>
+      </nav>
+      <div class="header-actions">
+        <form class="search-form" action="{{ url_for('products') }}" method="get">
+          <input type="search" name="q" placeholder="Search..." value="{{ request.args.get('q','') }}" />
+        </form>
+        <a href="{{ url_for('cart') }}" class="icon-btn" title="Cart">
+          🛍 <span class="badge">{{ cart_count }}</span>
+        </a>
+        {% if current_user %}
+          <a href="{{ url_for('account') }}" class="icon-btn" title="Account">👤</a>
+          <a href="{{ url_for('logout') }}" class="icon-btn" title="Logout">↩</a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="icon-btn" title="Login">🔐</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="container">
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <h4>ZELO LIVE BOUTIQUE</h4>
+        <p class="muted">Premium brand leftover unstitched suits, laces & patches — authentic quality, unbeatable prices.</p>
+      </div>
+      <div>
+        <h4>Shop</h4>
+        <ul>
+          <li><a href="{{ url_for('products', sort='newest') }}">New Arrivals</a></li>
+          <li><a href="{{ url_for('products', sort='discount') }}">Sale</a></li>
+          <li><a href="{{ url_for('products') }}">All Products</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Help</h4>
+        <ul>
+          <li><a href="#">Shipping Policy</a></li>
+          <li><a href="#">Return & Exchange</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <ul>
+          <li>📞 +92 304 5519335</li>
+          <li>✉ hello@zelolive.com</li>
+          <li>📍 Pakistan</li>
+        </ul>
+        <div class="socials">
+          <a href="#" title="Instagram">IG</a>
+          <a href="#" title="Facebook">FB</a>
+          <a href="#" title="WhatsApp">WA</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">© 2026 ZELO LIVE BOUTIQUE. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

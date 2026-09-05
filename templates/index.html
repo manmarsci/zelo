@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}ZELO LIVE BOUTIQUE — Premium Brand Leftovers{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-content">
+    <span class="eyebrow">Unstitched Suits • Laces • Patches</span>
+    <h1>Designer Fabrics,<br/>Honest Prices.</h1>
+    <p>Authentic brand surplus unstitched suits, premium laces & patches — curated with care, priced with love.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('products', sort='newest') }}" class="btn btn-primary">Shop New Arrivals</a>
+      <a href="{{ url_for('products', sort='discount') }}" class="btn btn-outline">View Sale</a>
+    </div>
+  </div>
+</section>
+
+<!-- Features bar -->
+<section class="features-bar">
+  <div class="container features-grid">
+    <div class="feature">
+      <div class="feature-icon">🧵</div>
+      <div>
+        <strong>Unstitched Suits</strong>
+        <p class="muted small">Premium brand leftovers</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✨</div>
+      <div>
+        <strong>Premium Laces</strong>
+        <p class="muted small">Designer quality</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎀</div>
+      <div>
+        <strong>Patches & Trims</strong>
+        <p class="muted small">Exclusive collections</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🚚</div>
+      <div>
+        <strong>Fast Delivery</strong>
+        <p class="muted small">Across Pakistan</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- New Arrivals -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>New Arrivals</h2>
+      <a href="{{ url_for('products', sort='newest') }}" class="link">View All →</a>
+    </div>
+    <div class="product-grid">
+      {% for p in new_arrivals %}
+        {% include "_product_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Banner -->
+<section class="promo-banner">
+  <div class="container">
+    <h3>Up to 60% Off</h3>
+    <p>Brand leftovers — limited stock, limited time.</p>
+    <a href="{{ url_for('products', sort='discount') }}" class="btn btn-primary">Shop Sale</a>
+  </div>
+</section>
+
+<!-- Popular -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>Most Popular</h2>
+      <a href="{{ url_for('products', sort='bestselling') }}" class="link">View All →</a>
+    </div>
+    <div class="product-grid">
+      {% for p in popular %}
+        {% include "_product_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Sale -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>On Sale</h2>
+      <a href="{{ url_for('products', sort='discount') }}" class="link">View All →</a>
+    </div>
+    <div class="product-grid">
+      {% for p in sale %}
+        {% include "_product_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

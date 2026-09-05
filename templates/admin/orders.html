@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="admin-head">
+  <h1>Orders</h1>
+  <a href="{{ url_for('admin_order_add') }}" class="btn btn-primary">+ Create Order</a>
+</div>
+<div class="filter-bar">
+  <a href="{{ url_for('admin_orders') }}" class="{{ '' if current_status else 'active' }}">All</a>
+  <a href="{{ url_for('admin_orders', status='Pending') }}" class="{{ 'active' if current_status=='Pending' }}">Pending</a>
+  <a href="{{ url_for('admin_orders', status='Confirmed') }}" class="{{ 'active' if current_status=='Confirmed' }}">Confirmed</a>
+  <a href="{{ url_for('admin_orders', status='Shipped') }}" class="{{ 'active' if current_status=='Shipped' }}">Shipped</a>
+  <a href="{{ url_for('admin_orders', status='Delivered') }}" class="{{ 'active' if current_status=='Delivered' }}">Delivered</a>
+  <a href="{{ url_for('admin_orders', status='Cancelled') }}" class="{{ 'active' if current_status=='Cancelled' }}">Cancelled</a>
+</div>
+<table class="admin-table">
+  <thead><tr><th>Order #</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for o in orders %}
+      <tr>
+        <td>{{ o.order_number }}</td>
+        <td>{{ o.shipping_name }}<br/><small class="muted">{{ o.shipping_phone }}</small></td>
+        <td>PKR {{ "%.0f"|format(o.total) }}</td>
+        <td>
+          {{ o.payment_method }}
+          {% if o.payment_method == 'JazzCash' and o.payment_proof_url %}
+            <br/><a href="{{ o.payment_proof_url }}" target="_blank" class="text-ok small">✓ View Proof</a>
+          {% elif o.payment_method == 'JazzCash' %}
+            <br/><span class="text-warn small">Awaiting proof</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('admin_order_status', oid=o.id) }}" style="display:inline">
+            <select name="status" onchange="this.form.submit()">
+              {% for s in ['Pending','Confirmed','Shipped','Delivered','Cancelled'] %}
+                <option value="{{ s }}" {{ 'selected' if o.status==s }}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td>{{ o.created_at }}</td>
+        <td><a href="{{ url_for('order_detail', order_number=o.order_number) }}">View</a></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

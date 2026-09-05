@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}My Account{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1>My Account</h1>
+    <div class="account-layout">
+      <aside class="account-nav">
+        <a href="{{ url_for('account') }}" class="active">Profile</a>
+        <a href="{{ url_for('orders') }}">My Orders</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      </aside>
+      <div class="account-main">
+        <h3>Profile</h3>
+        <form method="post" action="{{ url_for('account_update') }}">
+          <input type="text" name="name" value="{{ user.name }}" required />
+          <input type="email" value="{{ user.email }}" disabled />
+          <input type="tel" name="phone" value="{{ user.phone or '' }}" />
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+
+        <h3 style="margin-top:2rem">Saved Addresses</h3>
+        {% for a in addresses %}
+          <div class="address-card-static">
+            <strong>{{ a.full_name }}</strong> — {{ a.phone }}<br/>
+            {{ a.address }}, {{ a.city }}, {{ a.province }} {{ a.postal_code }}
+            <form method="post" action="{{ url_for('address_delete', aid=a.id) }}" style="display:inline">
+              <button class="btn-link text-danger">Remove</button>
+            </form>
+          </div>
+        {% endfor %}
+
+        <h3 style="margin-top:2rem">Add New Address</h3>
+        <form method="post" action="{{ url_for('address_add') }}">
+          <input type="text" name="full_name" placeholder="Full Name" required />
+          <input type="tel" name="phone" placeholder="Phone" required />
+          <textarea name="address" placeholder="Complete Address" required></textarea>
+          <div class="form-row-3">
+            <input type="text" name="city" placeholder="City" required />
+            <select name="province" required>
+              <option value="">Province</option>
+              <option>Punjab</option><option>Sindh</option><option>KPK</option>
+              <option>Balochistan</option><option>Islamabad</option>
+            </select>
+            <input type="text" name="postal_code" placeholder="Postal Code" />
+          </div>
+          <label><input type="checkbox" name="is_default" /> Set as default</label>
+          <button type="submit" class="btn btn-primary">Add Address</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

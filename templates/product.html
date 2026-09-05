@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% set price = product.sale_price or product.original_price %}
+{% set discount = (((product.original_price - price) / product.original_price) * 100)|round|int if product.sale_price else 0 %}
+
+{% block title %}{{ product.name }} — ZELO LIVE BOUTIQUE{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <nav class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a> /
+      <a href="{{ url_for('products') }}">Shop</a> /
+      <span>{{ product.name }}</span>
+    </nav>
+
+    <div class="product-detail">
+      <div class="product-gallery">
+        {% set imgs = images if images else [{'image_url': 'https://via.placeholder.com/600x750?text=ZELO'}] %}
+        <div class="gallery-main">
+          <img id="mainImage" src="{{ imgs[0].image_url }}" alt="{{ product.name }}" />
+        </div>
+        {% if imgs|length > 1 %}
+          <div class="gallery-thumbs">
+            {% for img in imgs %}
+              <img src="{{ img.image_url }}" alt="" class="thumb {{ 'active' if loop.first }}" onclick="document.getElementById('mainImage').src='{{ img.image_url }}'; document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active')); this.classList.add('active');" />
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="product-summary">
+        <div class="product-brand-line">{{ product.brand_name }} {% if product.category_name %}• {{ product.category_name }}{% endif %}</div>
+        <h1>{{ product.name }}</h1>
+
+        <div class="product-price-big">
+          {% if product.sale_price %}
+            <span class="price-sale">PKR {{ "%.0f"|format(product.sale_price) }}</span>
+            <span class="price-old">PKR {{ "%.0f"|format(product.original_price) }}</span>
+            <span class="badge-tag sale">-{{ discount }}%</span>
+          {% else %}
+            <span class="price-sale">PKR {{ "%.0f"|format(product.original_price) }}</span>
+          {% endif %}
+        </div>
+
+        {% if product.stock == 0 %}
+          <p class="text-danger"><strong>Out of stock</strong></p>
+        {% else %}
+          <p class="text-ok">✓ In stock {% if product.stock < 10 %}<span class="text-warn">(Only {{ product.stock }} left!)</span>{% endif %}</p>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('cart_add') }}" class="buy-form">
+          <input type="hidden" name="product_id" value="{{ product.id }}" />
+
+                    {% if product.sizes_list %}
+            <div class="option-group">
+              <label>Size</label>
+              <div class="size-options">
+                {% for s in product.sizes_list %}
+                  <label class="size-chip"><input type="radio" name="size" value="{{ s }}" {{ 'checked' if loop.first }}>{{ s }}</label>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+                    {% if product.colors_list %}
+            <div class="option-group">
+              <label>Color</label>
+              <div class="size-options">
+                {% for c in product.colors_list %}
+                  <label class="size-chip"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}>{{ c }}</label>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="qty-row">
+            <label>Quantity</label>
+            <div class="qty-selector">
+              <button type="button" onclick="adjustQty(-1)">−</button>
+              <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" id="qtyInput" />
+              <button type="button" onclick="adjustQty(1)">+</button>
+            </div>
+          </div>
+
+          <div class="buy-actions">
+            <button type="submit" class="btn btn-primary" {{ 'disabled' if product.stock==0 }}>Add to Cart</button>
+            <a href="#" class="btn btn-outline" onclick="document.getElementById('sizeGuideModal').style.display='flex'; return false;">Size Guide</a>
+          </div>
+        </form>
+
+        <div class="product-meta">
+          <p><strong>Description:</strong> {{ product.description }}</p>
+          {% if product.fabric %}<p><strong>Fabric:</strong> {{ product.fabric }}</p>{% endif %}
+          <p><strong>Brand:</strong> {{ product.brand_name }}</p>
+        </div>
+
+        <div class="trust-row">
+          <span>🚚 Fast delivery across Pakistan</span>
+          <span>💵 Cash on Delivery</span>
+          <span>✓ Authentic brand leftover</span>
+        </div>
+      </div>
+    </div>
+
+    {% if related %}
+      <div class="section-head" style="margin-top:3rem">
+        <h2>You May Also Like</h2>
+      </div>
+      <div class="product-grid">
+        {% for p in related %}
+          {% include "_product_card.html" %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Size guide modal -->
+<div id="sizeGuideModal" class="modal" style="display:none" onclick="if(event.target===this) this.style.display='none'">
+  <div class="modal-content">
+    <button class="modal-close" onclick="this.parentElement.style.display='none'">×</button>
+    <h3>Size Guide</h3>
+    <table class="size-table">
+      <tr><th>Size</th><th>Bust (in)</th><th>Waist (in)</th><th>Hips (in)</th></tr>
+      <tr><td>S</td><td>32-34</td><td>26-28</td><td>34-36</td></tr>
+      <tr><td>M</td><td>34-36</td><td>28-30</td><td>36-38</td></tr>
+      <tr><td>L</td><td>36-38</td><td>30-32</td><td>38-40</td></tr>
+      <tr><td>XL</td><td>38-40</td><td>32-34</td><td>40-42</td></tr>
+    </table>
+    <p class="muted">Measurements are approximate. For unstitched, fabric length is provided as per brand standard.</p>
+  </div>
+</div>
+{% endblock %}

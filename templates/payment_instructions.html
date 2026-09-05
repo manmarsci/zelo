@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Payment Instructions — Order #{{ order.order_number }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="payment-instructions-card">
+      <div class="success-icon">✓</div>
+      <h1>Thank You for Your Order!</h1>
+      <p class="order-number">Order #{{ order.order_number }}</p>
+      
+      <div class="payment-box">
+        <h2>📱 Complete Your JazzCash Payment</h2>
+        <div class="payment-details">
+          <div class="detail-row">
+            <span class="label">Account Number:</span>
+            <span class="value highlight">03045519335</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Account Title:</span>
+            <span class="value">Robina Niaz</span>
+          </div>
+          <div class="detail-row total-row">
+            <span class="label">Amount to Pay:</span>
+            <span class="value highlight">PKR {{ "%.0f"|format(order.total) }}</span>
+          </div>
+        </div>
+        
+        <div class="instructions">
+          <h3>How to Pay:</h3>
+          <ol>
+            <li>Open your <strong>JazzCash app</strong></li>
+            <li>Send <strong>PKR {{ "%.0f"|format(order.total) }}</strong> to <strong>03045519335</strong> (Robina Niaz)</li>
+            <li>Take a <strong>screenshot</strong> of the payment confirmation</li>
+            <li>Upload the screenshot below</li>
+            <li>We'll verify your payment and ship your order within <strong>24 hours</strong></li>
+          </ol>
+        </div>
+        
+        <div class="upload-section">
+          <h3>Upload Payment Proof</h3>
+          {% if order.payment_proof_url %}
+            <div class="proof-uploaded">
+              <p class="text-ok">✓ Payment proof uploaded successfully!</p>
+              <img src="{{ order.payment_proof_url }}" alt="Payment Proof" class="proof-preview" />
+              <p class="muted small">We're verifying your payment. You'll receive a confirmation soon.</p>
+            </div>
+          {% else %}
+            <form method="post" action="{{ url_for('upload_payment_proof', order_number=order.order_number) }}" enctype="multipart/form-data">
+              <div class="file-upload">
+                <input type="file" name="payment_proof" accept="image/*" required id="proofInput" />
+                <label for="proofInput" class="file-upload-label">
+                  <span>📎 Choose Screenshot</span>
+                </label>
+              </div>
+              <button type="submit" class="btn btn-primary">Upload Payment Proof</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="order-summary-mini">
+        <h3>Order Summary</h3>
+        <div class="summary-row"><span>Order Total</span><span>PKR {{ "%.0f"|format(order.total) }}</span></div>
+        <div class="summary-row"><span>Status</span><span class="status-pill status-{{ order.status|lower }}">{{ order.status }}</span></div>
+      </div>
+      
+      <div class="action-buttons">
+        <a href="{{ url_for('order_detail', order_number=order.order_number) }}" class="btn btn-outline">View Order Details</a>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Continue Shopping</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

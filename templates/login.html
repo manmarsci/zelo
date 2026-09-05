@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container auth-wrap">
+    <div class="auth-card">
+      <h1>Welcome Back</h1>
+      <p class="muted">Sign in to your ZELO LIVE account.</p>
+      <form method="post">
+        <input type="email" name="email" placeholder="Email" required />
+        <input type="password" name="password" placeholder="Password" required />
+        <button type="submit" class="btn btn-primary btn-block">Login</button>
+      </form>
+      <p class="auth-foot">New here? <a href="{{ url_for('register') }}">Create an account</a></p>
+    </div>
+  </div>
+</section>
+{% endblock %}

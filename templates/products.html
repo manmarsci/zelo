@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Shop{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="catalog-head">
+      <h1>{{ "Sale" if current_sort == "discount" else "All Products" }}</h1>
+      <div class="catalog-meta">
+        <form class="sort-form" method="get">
+          {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
+          {% if current_brand %}<input type="hidden" name="brand" value="{{ current_brand }}">{% endif %}
+          {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+          <label>Sort:</label>
+          <select name="sort" onchange="this.form.submit()">
+            <option value="newest" {{ 'selected' if current_sort=='newest' }}>Newest</option>
+            <option value="price_low" {{ 'selected' if current_sort=='price_low' }}>Price: Low to High</option>
+            <option value="price_high" {{ 'selected' if current_sort=='price_high' }}>Price: High to Low</option>
+            <option value="popular" {{ 'selected' if current_sort=='popular' }}>Most Popular</option>
+            <option value="bestselling" {{ 'selected' if current_sort=='bestselling' }}>Best Selling</option>
+            <option value="discount" {{ 'selected' if current_sort=='discount' }}>Biggest Discount</option>
+          </select>
+        </form>
+      </div>
+    </div>
+
+    <div class="catalog-layout">
+      <!-- Filters -->
+      <aside class="filters">
+        <form method="get">
+          {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
+          {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+
+          <div class="filter-group">
+            <h4>Category</h4>
+            <label><input type="radio" name="category" value="" {{ '' if current_category else 'checked' }} onchange="this.form.submit()"> All</label>
+            {% for c in categories %}
+              <label><input type="radio" name="category" value="{{ c.slug }}" {{ 'checked' if current_category==c.slug }} onchange="this.form.submit()"> {{ c.name }}</label>
+            {% endfor %}
+          </div>
+
+          <div class="filter-group">
+            <h4>Brand</h4>
+            <label><input type="radio" name="brand" value="" {{ '' if current_brand else 'checked' }} onchange="this.form.submit()"> All</label>
+            {% for b in brands %}
+              <label><input type="radio" name="brand" value="{{ b.slug }}" {{ 'checked' if current_brand==b.slug }} onchange="this.form.submit()"> {{ b.name }}</label>
+            {% endfor %}
+          </div>
+
+          <div class="filter-group">
+            <h4>Availability</h4>
+            <label><input type="checkbox" name="avail" value="in_stock" {{ 'checked' if request.args.get('avail')=='in_stock' }} onchange="this.form.submit()"> In stock only</label>
+          </div>
+
+          <div class="filter-group">
+            <h4>Max Price (PKR)</h4>
+            <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="e.g. 5000" onchange="this.form.submit()" />
+          </div>
+
+          <button type="button" class="btn-link" onclick="window.location='{{ url_for('products') }}'">Clear filters</button>
+        </form>
+      </aside>
+
+      <!-- Grid -->
+      <div class="catalog-main">
+        {% if products %}
+          <div class="product-grid">
+            {% for p in products %}
+              {% include "_product_card.html" %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">No products found. Try adjusting your filters.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

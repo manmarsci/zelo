@@ -1,0 +1,29 @@
+zelo-boutique/
+├── app.py                  # Flask backend + MotherDuck connection
+├── init_db.py              # Database initialization + seed data
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment variables template
+├── README.md               # Setup instructions
+├── static/
+│   ├── css/style.css       # Main stylesheet
+│   ├── js/main.js          # Frontend scripts
+│   └── uploads/            # Product images (uploaded by admin)
+└── templates/
+    ├── base.html           # Base layout
+    ├── index.html          # Homepage
+    ├── products.html       # Product catalog
+    ├── product.html        # Product detail
+    ├── cart.html           # Shopping cart
+    ├── checkout.html       # Checkout
+    ├── login.html          # Login
+    ├── register.html       # Register
+    ├── account.html        # User account
+    ├── orders.html         # Order history
+    ├── order.html          # Order detail
+    └── admin/
+        ├── base.html       # Admin base layout
+        ├── dashboard.html  # Admin dashboard
+        ├── products.html   # Manage products
+        ├── product_form.html
+        ├── orders.html     # Manage orders
+        └── customers.html  # Manage customers

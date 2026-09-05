@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>{{ "Edit" if product else "Add" }} Product</h1>
+<form method="post" enctype="multipart/form-data" class="admin-form">
+  <div class="form-row-2">
+    <div>
+      <label>Product Name *</label>
+      <input type="text" name="name" value="{{ product.name if product else '' }}" required />
+    </div>
+    <div>
+      <label>Brand</label>
+      <select name="brand_id">
+        <option value="">—</option>
+        {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if product and product.brand_id==b.id }}>{{ b.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="form-row-2">
+    <div>
+      <label>Category</label>
+      <select name="category_id">
+        <option value="">—</option>
+        {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if product and product.category_id==c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Fabric / Material</label>
+      <input type="text" name="fabric" value="{{ product.fabric if product else '' }}" />
+    </div>
+  </div>
+  <label>Description</label>
+  <textarea name="description" rows="4">{{ product.description if product else '' }}</textarea>
+
+  <div class="form-row-3">
+    <div>
+      <label>Original Price (PKR) *</label>
+      <input type="number" step="0.01" name="original_price" value="{{ product.original_price if product else '' }}" required />
+    </div>
+    <div>
+      <label>Sale Price (PKR)</label>
+      <input type="number" step="0.01" name="sale_price" value="{{ product.sale_price if product else '' }}" />
+    </div>
+    <div>
+      <label>Stock *</label>
+      <input type="number" name="stock" value="{{ product.stock if product else 0 }}" required />
+    </div>
+  </div>
+
+  <div class="form-row-2">
+    <div>
+      <label>Sizes (JSON array)</label>
+      <input type="text" name="sizes" value="{{ product.sizes if product else '[]' }}" placeholder='["S","M","L"]' />
+    </div>
+    <div>
+      <label>Colors (JSON array)</label>
+      <input type="text" name="colors" value="{{ product.colors if product else '[]' }}" placeholder='["Red","Blue"]' />
+    </div>
+  </div>
+
+  <div class="checkbox-row">
+    <label><input type="checkbox" name="is_new_arrival" {{ 'checked' if product and product.is_new_arrival }} /> New Arrival</label>
+    <label><input type="checkbox" name="is_popular" {{ 'checked' if product and product.is_popular }} /> Popular</label>
+    <label><input type="checkbox" name="is_sale" {{ 'checked' if product and product.is_sale }} /> Sale</label>
+    <label><input type="checkbox" name="is_active" {{ 'checked' if not product or product.is_active }} /> Active</label>
+  </div>
+
+  <label>Upload Images</label>
+  <input type="file" name="images" multiple accept="image/*" />
+
+  {% if images %}
+    <div class="image-list">
+      {% for img in images %}
+        <div class="image-thumb">
+          <img src="{{ img.image_url }}" />
+          <form method="post" action="{{ url_for('admin_image_delete', iid=img.id) }}">
+            <button class="btn-link text-danger">Remove</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ "Update" if product else "Create" }} Product</button>
+    <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
+  </div>
+</form>
+{% endblock %}
