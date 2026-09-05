@@ -32,17 +32,20 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    # Create a guaranteed writable temp dir for DuckDB
     tmp_dir = tempfile.mkdtemp(prefix="duckdb_")
+    print(f"DEBUG: Created temp dir: {tmp_dir}")  # Check Vercel logs
     
     try:
-        # Method 1: Try default connection first
         duckdb.default_connection().execute(f"SET home_directory='{tmp_dir}'")
-    except Exception:
-        # Method 2: Fallback - set via SQL on global context
+        print("DEBUG: SET succeeded")
+    except Exception as e:
+        print(f"DEBUG: SET failed: {e}")
         duckdb.sql(f"PRAGMA home_directory='{tmp_dir}'")
+        print("DEBUG: PRAGMA attempted")
     
+    print(f"DEBUG: Connecting to md:{db}")
     conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
+    print("DEBUG: Connection successful!")
     return conn
 
 
