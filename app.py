@@ -23,7 +23,6 @@ app.config["UPLOAD_FOLDER"] = "static/uploads"
 DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
 
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
 # ---------- Database ----------
