@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import wraps
 
 import duckdb
+import cloudinary.uploader
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, abort)
 from werkzeug.security import generate_password_hash, check_password_hash
