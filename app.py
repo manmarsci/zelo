@@ -31,7 +31,7 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    # Force-set home directory on the global default connection BEFORE connecting to MD
+    # THIS LINE MUST BE HERE
     duckdb.default_connection().execute("SET home_directory='/tmp'")
     
     conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
