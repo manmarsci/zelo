@@ -1,7 +1,6 @@
 """ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
 import os
 import json
-import tempfile
 import uuid
 import secrets
 from datetime import datetime
@@ -32,20 +31,11 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    tmp_dir = tempfile.mkdtemp(prefix="duckdb_")
-    print(f"DEBUG: Created temp dir: {tmp_dir}")  # Check Vercel logs
-    
-    try:
-        duckdb.default_connection().execute(f"SET home_directory='{tmp_dir}'")
-        print("DEBUG: SET succeeded")
-    except Exception as e:
-        print(f"DEBUG: SET failed: {e}")
-        duckdb.sql(f"PRAGMA home_directory='{tmp_dir}'")
-        print("DEBUG: PRAGMA attempted")
-    
-    print(f"DEBUG: Connecting to md:{db}")
-    conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
-    print("DEBUG: Connection successful!")
+    # Pass home_directory as a PRAGMA directly in the MD connection string
+    # This is the ONLY method that survives MotherDuck's initialization
+    conn = duckdb.connect(
+        f"md:{db}?motherduck_token={token}&home_directory=/tmp"
+    )
     return conn
 
 
