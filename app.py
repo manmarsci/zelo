@@ -16,6 +16,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Vercel's serverless runtime has no writable/set HOME dir; DuckDB/MotherDuck
+# needs one to store its config & extensions cache. /tmp is the only writable
+# path in that environment.
+os.environ.setdefault("HOME", "/tmp")
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
@@ -30,12 +35,11 @@ FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
 def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
-    
-    # Load custom config BEFORE establishing MD connection
-    # This sets home_directory at the lowest level, before MD extension initializes
-    duckdb.sql("SET home_directory='/tmp'")
-    
-    conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
+
+    conn = duckdb.connect(
+        f"md:{db}?motherduck_token={token}",
+        config={"home_directory": "/tmp"}
+    )
     return conn
 
 
