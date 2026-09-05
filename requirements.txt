@@ -1,5 +1,5 @@
 Flask==3.0.0
-duckdb==1.5.4
+duckdb==1.5.5
 python-dotenv==1.0.1
 Werkzeug==3.0.1
 Pillow==10.2.0
