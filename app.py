@@ -31,10 +31,8 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    # Set a writable temp directory for DuckDB's internal operations
-    duckdb.sql("SET home_directory='/tmp'")
-    
-    conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
+    # Pass home_directory directly in the connection string for Vercel
+    conn = duckdb.connect(f"md:{db}?motherduck_token={token}&home_directory=/tmp")
     return conn
 
 
