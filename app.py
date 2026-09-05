@@ -1,6 +1,7 @@
 """ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
 import os
 import json
+import tempfile
 import uuid
 import secrets
 from datetime import datetime
@@ -31,8 +32,15 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    # THIS LINE MUST BE HERE
-    duckdb.default_connection().execute("SET home_directory='/tmp'")
+    # Create a guaranteed writable temp dir for DuckDB
+    tmp_dir = tempfile.mkdtemp(prefix="duckdb_")
+    
+    try:
+        # Method 1: Try default connection first
+        duckdb.default_connection().execute(f"SET home_directory='{tmp_dir}'")
+    except Exception:
+        # Method 2: Fallback - set via SQL on global context
+        duckdb.sql(f"PRAGMA home_directory='{tmp_dir}'")
     
     conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
     return conn
