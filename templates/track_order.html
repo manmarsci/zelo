@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Track Your Order{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="track-order-card">
+      <div class="track-icon">📦</div>
+      <h1>Track Your Order</h1>
+      <p class="muted">Enter your order number to see the latest status.</p>
+      
+      <form method="post" class="track-form">
+        <div class="sc-field">
+          <label>Order Number</label>
+          <input type="text" name="order_number" placeholder="e.g. ZLB-20260905-ABC123" required 
+                 style="text-transform: uppercase; letter-spacing: 1px;" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Track Order</button>
+      </form>
+
+      <div class="track-help">
+        <p class="muted small">
+          💡 You can find your order number in the confirmation email or on the thank-you page after checkout.
+        </p>
+        <p class="muted small" style="margin-top:.5rem">
+          Need help? Contact us on WhatsApp: <a href="https://wa.me/923045519335" target="_blank">0304 5519335</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

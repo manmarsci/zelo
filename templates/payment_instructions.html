@@ -37,23 +37,22 @@
         </div>
         
         <div class="upload-section">
-          <h3>Upload Payment Proof</h3>
+          <h3>Share Payment Proof</h3>
           {% if order.payment_proof_url %}
             <div class="proof-uploaded">
-              <p class="text-ok">✓ Payment proof uploaded successfully!</p>
+              <p class="text-ok">✓ Payment proof received!</p>
               <img src="{{ order.payment_proof_url }}" alt="Payment Proof" class="proof-preview" />
               <p class="muted small">We're verifying your payment. You'll receive a confirmation soon.</p>
             </div>
           {% else %}
-            <form method="post" action="{{ url_for('upload_payment_proof', order_number=order.order_number) }}" enctype="multipart/form-data">
-              <div class="file-upload">
-                <input type="file" name="payment_proof" accept="image/*" required id="proofInput" />
-                <label for="proofInput" class="file-upload-label">
-                  <span>📎 Choose Screenshot</span>
-                </label>
-              </div>
-              <button type="submit" class="btn btn-primary">Upload Payment Proof</button>
-            </form>
+            <div class="whatsapp-instructions">
+              <p>After making the payment, please share the screenshot via WhatsApp:</p>
+              <a href="https://wa.me/923045519335?text=Hi!%20I've%20completed%20payment%20for%20order%20#{{ order.order_number }}" 
+                 class="btn btn-primary" target="_blank">
+                📱 Send via WhatsApp
+              </a>
+              <p class="muted small" style="margin-top:1rem">Include your order number: <strong>#{{ order.order_number }}</strong></p>
+            </div>
           {% endif %}
         </div>
       </div>

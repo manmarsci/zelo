@@ -240,6 +240,12 @@ def product_detail(slug):
     except Exception:
         p['colors_list'] = []
 
+        # Parse features JSON
+    try:
+        p['features_list'] = json.loads(p['features']) if p['features'] else []
+    except Exception:
+        p['features_list'] = []
+
     # Track view
     execute("UPDATE products SET views = views + 1 WHERE id = ?", [p["id"]])
     images = query("SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order",
@@ -471,9 +477,9 @@ def checkout():
                                        total=subtotal + delivery - discount,
                                        coupon_code=coupon_code)
 
-        delivery = 0 if subtotal >= FREE_DELIVERY_ABOVE else DELIVERY_CHARGES
+        delivery = 0 if subtotal >= 5000 else 300
         total = subtotal + delivery - discount
-        payment_method = request.form.get("payment_method", "COD")
+        payment_method = request.form.get("payment_method", "JazzCash")
 
         # Create order
         order_number = "ZLB-" + datetime.now().strftime("%Y%m%d") + "-" + \
@@ -546,16 +552,45 @@ def orders():
 
 
 @app.route("/order/<order_number>")
-@login_required
 def order_detail(order_number):
     order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
     if not order:
         abort(404)
-    if "role" not in session or session["role"] != "admin":
-        if order["user_id"] != session.get("user_id"):
+    
+    # Permission check:
+    # - Admin can view any order
+    # - Logged-in customer can only view their own orders
+    # - Guest can view the order they just placed (order number is the secret)
+    if session.get("role") == "admin":
+        pass  # Admin can view all
+    elif "user_id" in session:
+        # Logged-in user — only allow if it's their order
+        if order["user_id"] != session["user_id"]:
             abort(403)
+    else:
+        # Guest user — allow access (order number is unique & hard to guess)
+        # But store the order number in session so they can re-access it
+        if "recent_orders" not in session:
+            session["recent_orders"] = []
+        if order_number not in session["recent_orders"]:
+            session["recent_orders"].append(order_number)
+            # Keep only last 5 orders in session
+            session["recent_orders"] = session["recent_orders"][-5:]
+    
     items = query("SELECT * FROM order_items WHERE order_id = ?", [order["id"]])
     return render_template("order.html", order=order, items=items)
+
+@app.route("/track-order", methods=["GET", "POST"])
+def track_order():
+    """Allow guests to track their recent orders by order number."""
+    if request.method == "POST":
+        order_number = request.form.get("order_number", "").strip().upper()
+        order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
+        if order:
+            return redirect(url_for("order_detail", order_number=order_number))
+        flash("Order not found. Please check the order number.", "error")
+    
+    return render_template("track_order.html")
 
 
 # ---------- Admin ----------
@@ -601,7 +636,19 @@ def admin_product_form(pid=None):
 
     if request.method == "POST":
         f = request.form
+        
+        # --- Handle Features ---
+        features = []
+        for i in range(4):
+            title = request.form.get(f"feat_title_{i}", "").strip()
+            desc = request.form.get(f"feat_desc_{i}", "").strip()
+            if title:
+                features.append({"title": title, "desc": desc})
+        features_json = json.dumps(features)
+
         slug = slugify(f["name"]) if not (product and product["slug"]) else product["slug"]
+        
+        # Data for DB (added features_json at the end)
         data = [
             f["name"], slug, f.get("description", ""), f.get("fabric", ""),
             int(f["brand_id"]) or None, int(f["category_id"]) or None,
@@ -613,13 +660,15 @@ def admin_product_form(pid=None):
             f.get("is_popular") == "on",
             f.get("is_sale") == "on",
             f.get("is_active") == "on",
+            features_json
         ]
+
         if product:
             execute("""
                 UPDATE products SET name=?, slug=?, description=?, fabric=?,
                     brand_id=?, category_id=?, original_price=?, sale_price=?,
                     stock=?, sizes=?, colors=?, is_new_arrival=?, is_popular=?,
-                    is_sale=?, is_active=?
+                    is_sale=?, is_active=?, features=?
                 WHERE id=?
             """, data + [pid])
             flash("Product updated.", "success")
@@ -628,25 +677,24 @@ def admin_product_form(pid=None):
                 INSERT INTO products
                 (name, slug, description, fabric, brand_id, category_id,
                  original_price, sale_price, stock, sizes, colors,
-                 is_new_arrival, is_popular, is_sale, is_active)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 is_new_arrival, is_popular, is_sale, is_active, features)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, data)
             new_p = query_one("SELECT id FROM products WHERE slug = ?", [slug])
             pid = new_p["id"]
             flash("Product added.", "success")
 
-        # Handle image uploads
-        files = request.files.getlist("images")
-        for file in files:
-            if file and file.filename:
-                fname = secure_filename(f"{uuid.uuid4().hex}_{file.filename}")
-                path = os.path.join(app.config["UPLOAD_FOLDER"], fname)
-                file.save(path)
-                url = f"/static/uploads/{fname}"
+        # --- Handle Images (Clear old, insert new) ---
+        execute("DELETE FROM product_images WHERE product_id = ?", [pid])
+        image_urls = request.form.getlist("image_urls[]")
+        for url in image_urls:
+            url = url.strip()
+            if url:
                 execute("INSERT INTO product_images (product_id, image_url) VALUES (?,?)",
                         [pid, url])
-
-        return redirect(url_for("admin_products"))
+        
+        # Redirect to edit page to show new images
+        return redirect(url_for("admin_product_form", pid=pid))
 
     return render_template("admin/product_form.html", product=product,
                            brands=brands, categories=categories, images=images)
@@ -757,7 +805,7 @@ def admin_order_add():
         discount = float(request.form.get("discount", 0))
         total = subtotal + delivery - discount
         
-        payment_method = request.form.get("payment_method", "COD")
+        payment_method = request.form.get("payment_method", "JazzCash")
         status = request.form.get("status", "Pending")
         
         # Generate order number
@@ -840,13 +888,14 @@ def payment_instructions(order_number):
 
 
 # ---------- Upload Payment Proof ----------
+import cloudinary.uploader  # Add this import at top of app.py
+
 @app.route("/upload-payment-proof/<order_number>", methods=["POST"])
 def upload_payment_proof(order_number):
     order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
     if not order:
         abort(404)
     
-    # Check permission
     if "role" not in session or session["role"] != "admin":
         if order["user_id"] != session.get("user_id"):
             abort(403)
@@ -860,22 +909,36 @@ def upload_payment_proof(order_number):
         flash("No file selected.", "error")
         return redirect(url_for("payment_instructions", order_number=order_number))
     
-    if file:
-        filename = secure_filename(f"proof_{order_number}_{uuid.uuid4().hex[:8]}_{file.filename}")
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(filepath)
+    try:
+        # Upload directly to Cloudinary - NO LOCAL SAVING
+        result = cloudinary.uploader.upload(
+            file, 
+            folder="zelo_boutique/payment_proofs",
+            resource_type="image"
+        )
+        proof_url = result["secure_url"]
         
-        # Save to database
-        proof_url = f"/static/uploads/{filename}"
         execute("UPDATE orders SET payment_proof_url = ? WHERE order_number = ?",
                 [proof_url, order_number])
         
-        flash("Payment proof uploaded successfully! We'll verify it shortly.", "success")
-        return redirect(url_for("order_detail", order_number=order_number))
+        flash("Payment proof uploaded successfully!", "success")
+    except Exception as e:
+        print(f"Cloudinary upload error: {e}")
+        flash("Failed to upload payment proof.", "error")
     
-    return redirect(url_for("payment_instructions", order_number=order_number))
+    return redirect(url_for("order_detail", order_number=order_number))
 
 
 # ---------- Run ----------
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+# REMOVE THIS OLD BLOCK:
+# if __name__ == "__main__":
+#     port = int(os.getenv("PORT", 5000))
+#     app.run(debug=False, host="0.0.0.0", port=port)
+
+# ADD THIS NEW BLOCK INSTEAD:
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+def handler(request):
+    return app(request.environ, lambda *args: None)

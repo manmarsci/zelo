@@ -1,59 +1,189 @@
 {% extends "base.html" %}
 {% block title %}Order #{{ order.order_number }}{% endblock %}
+
 {% block content %}
 <section class="section">
   <div class="container">
-    <h1>Order #{{ order.order_number }}</h1>
-    <div class="order-detail">
-      <div>
-        <h3>Status</h3>
-        <span class="status-pill status-{{ order.status|lower }}">{{ order.status }}</span>
-        <p class="muted">Placed on {{ order.created_at }}</p>
-      </div>
-      <div>
-        <h3>Shipping Address</h3>
-        <p>{{ order.shipping_name }}<br/>{{ order.shipping_phone }}<br/>
-           {{ order.shipping_address }}<br/>{{ order.shipping_city }}, {{ order.shipping_province }} {{ order.shipping_postal }}</p>
-      </div>
-      <div>
-        <h3>Payment</h3>
-        <p>{{ order.payment_method }}</p>
-        {% if order.payment_proof_url %}
-          <p class="text-ok small">✓ Payment proof uploaded</p>
-        {% elif order.payment_method == 'JazzCash' %}
-          <a href="{{ url_for('payment_instructions', order_number=order.order_number) }}" class="btn btn-outline btn-sm">Upload Payment Proof</a>
-        {% endif %}
-      </div>
-    </div>
     
-    {% if order.payment_proof_url %}
-      <div class="payment-proof-section">
-        <h3>Payment Proof</h3>
-        <img src="{{ order.payment_proof_url }}" alt="Payment Proof" class="proof-preview-large" />
+    <!-- Thank You Header (shown for recent orders) -->
+    {% if not current_user or current_user.role != 'admin' %}
+      <div class="order-thank-you">
+        <div class="thank-you-icon">✓</div>
+        <h1>Thank You for Your Order!</h1>
+        <p class="order-number-display">Order #{{ order.order_number }}</p>
+        <p class="muted">A confirmation has been sent to {% if order.guest_email %}{{ order.guest_email }}{% elif current_user %}{{ current_user.email }}{% endif %}</p>
+      </div>
+    {% else %}
+      <h1>Order #{{ order.order_number }}</h1>
+    {% endif %}
+
+    <!-- Order Status Card -->
+    <div class="order-status-card">
+      <div class="status-current">
+        <span class="status-label">Current Status</span>
+        <span class="status-pill status-{{ order.status|lower }}">{{ order.status }}</span>
+      </div>
+      <div class="status-timeline">
+        {% set statuses = ['Pending', 'Confirmed', 'Shipped', 'Delivered'] %}
+        {% set current_idx = statuses.index(order.status) if order.status in statuses else -1 %}
+        {% for s in statuses %}
+          <div class="timeline-step {{ 'active' if loop.index0 <= current_idx }} {{ 'current' if loop.index0 == current_idx }}">
+            <div class="timeline-dot"></div>
+            <div class="timeline-label">{{ s }}</div>
+          </div>
+          {% if not loop.last %}
+            <div class="timeline-line {{ 'active' if loop.index0 < current_idx }}"></div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% if order.status == 'Cancelled' %}
+        <p class="text-danger" style="margin-top:1rem">This order has been cancelled.</p>
+      {% endif %}
+    </div>
+
+    <!-- Guest: Offer to Create Account -->
+    {% if not current_user and order.guest_email %}
+      <div class="guest-cta">
+        <h3>📧 Track Your Order Anytime</h3>
+        <p>Create a free account to easily track this order and enjoy faster checkout next time.</p>
+        <div class="guest-cta-actions">
+          <a href="{{ url_for('register') }}" class="btn btn-primary">Create Account</a>
+          <a href="{{ url_for('track_order') }}" class="btn btn-outline">Track Another Order</a>
+        </div>
       </div>
     {% endif %}
-    
-    <h3 style="margin-top:2rem">Items</h3>
-    <table class="order-table">
-      <thead><tr><th>Item</th><th>Size/Color</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-      <tbody>
-        {% for it in items %}
-          <tr>
-            <td>{{ it.product_name }}</td>
-            <td>{{ it.size or '-' }} / {{ it.color or '-' }}</td>
-            <td>{{ it.quantity }}</td>
-            <td>PKR {{ "%.0f"|format(it.price) }}</td>
-            <td>PKR {{ "%.0f"|format(it.price * it.quantity) }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div class="order-totals">
+
+    <!-- Order Details Grid -->
+    <div class="order-detail-grid">
+      <div class="order-detail-box">
+        <h3>📦 Shipping Address</h3>
+        <p>
+          <strong>{{ order.shipping_name }}</strong><br/>
+          {{ order.shipping_phone }}<br/>
+          {{ order.shipping_address }}<br/>
+          {% if order.shipping_postal %}{{ order.shipping_address2 ~ ', ' if order.shipping_address2 else '' }}{% endif %}
+          {{ order.shipping_city }}, {{ order.shipping_province }} {{ order.shipping_postal }}
+        </p>
+      </div>
+      <div class="order-detail-box">
+        <h3>💳 Payment</h3>
+        
+        {% if order.payment_method == 'JazzCash' %}
+          <p>
+            <strong style="color:#c9a961; font-size:1.1rem;">JazzCash</strong><br/>
+            <span class="muted small">Mobile Wallet Payment</span>
+          </p>
+          
+          {% if order.payment_proof_url %}
+            <div class="text-ok" style="margin-top:.5rem">✓ Payment Verified</div>
+          {% elif order.status == 'Pending' %}
+            <div class="text-warn" style="margin-top:.5rem"> Awaiting Payment Proof</div>
+            <a href="{{ url_for('payment_instructions', order_number=order.order_number) }}" 
+               class="btn-link small" style="margin-top:.5rem; display:inline-block;">
+              View Payment Instructions →
+            </a>
+          {% endif %}
+          
+        {% elif order.payment_method == 'COD' %}
+          <p>
+            <strong>Cash on Delivery</strong><br/>
+            <span class="muted small">Pay when you receive</span>
+          </p>
+          
+        {% else %}
+          <p><strong>{{ order.payment_method }}</strong></p>
+        {% endif %}
+      </div>
+      <div class="order-detail-box">
+        <h3>📅 Order Date</h3>
+        <p>{{ order.created_at }}</p>
+      </div>
+    </div>
+
+    <!-- Payment Instructions for JazzCash (if not yet paid) -->
+    {% if order.payment_method == 'JazzCash' and not order.payment_proof_url and order.status == 'Pending' %}
+      <div class="payment-action-box">
+        <h3>📱 Complete Your JazzCash Payment</h3>
+        <p>Please send <strong>PKR {{ "%.0f"|format(order.total) }}</strong> to:</p>
+        <div class="payment-account">
+          <div><span class="label">Account Number:</span> <strong>0304 5519335</strong></div>
+          <div><span class="label">Account Title:</span> <strong>Robina Niaz</strong></div>
+          <div><span class="label">Amount:</span> <strong>PKR {{ "%.0f"|format(order.total) }}</strong></div>
+        </div>
+        <div class="payment-steps">
+          <h4>Payment Steps:</h4>
+          <ol>
+            <li>Open JazzCash app or dial *786#</li>
+            <li>Send money to <strong>0304 5519335</strong></li>
+            <li>Enter account title: <strong>Robina Niaz</strong></li>
+            <li>Enter amount: <strong>PKR {{ "%.0f"|format(order.total) }}</strong></li>
+            <li>Take screenshot of confirmation</li>
+            <li>Share via WhatsApp button below</li>
+          </ol>
+        </div>
+        <div class="payment-actions">
+          <a href="https://wa.me/923045519335?text=Assalam%20O%20Alaikum!%20I've%20completed%20payment%20for%20order%20#{{ order.order_number }}.%20Total:%20PKR%20{{ "%.0f"|format(order.total) }}.%20Sending%20proof%20now." 
+             class="btn btn-primary" target="_blank">
+             Send Payment Proof via WhatsApp
+          </a>
+          <a href="https://wa.me/923214857054?text=Assalam%20O%20Alaikum!%20I%20have%20a%20question%20about%20order%20#{{ order.order_number }}" 
+             class="btn btn-outline" target="_blank">
+            📞 Contact Support
+          </a>
+        </div>
+      </div>
+    {% elif order.payment_method == 'COD' %}
+      <div class="payment-action-box cod-box">
+        <h3>💵 Cash on Delivery</h3>
+        <p>Please keep <strong>PKR {{ "%.0f"|format(order.total) }}</strong> ready when your order arrives.</p>
+        <p class="muted small">Our delivery partner will contact you before delivery.</p>
+      </div>
+    {% endif %}
+
+    <!-- Order Items -->
+    <h3 style="margin-top:2rem">Items in Your Order</h3>
+    <div class="order-items-list">
+      {% for it in items %}
+        <div class="order-item-card">
+          {% if it.image_url %}
+            <img src="{{ it.image_url }}" alt="{{ it.product_name }}" class="order-item-img" />
+          {% else %}
+            <div class="order-item-img-placeholder">🛍</div>
+          {% endif %}
+          <div class="order-item-info">
+            <div class="order-item-name">{{ it.product_name }}</div>
+            <div class="order-item-meta">
+              {% if it.size %}Size: {{ it.size }}{% endif %}
+              {% if it.size and it.color %} • {% endif %}
+              {% if it.color %}Color: {{ it.color }}{% endif %}
+            </div>
+            <div class="order-item-qty">Qty: {{ it.quantity }}</div>
+          </div>
+          <div class="order-item-price">
+            PKR {{ "%.0f"|format(it.price * it.quantity) }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Order Totals -->
+    <div class="order-totals-box">
       <div class="summary-row"><span>Subtotal</span><span>PKR {{ "%.0f"|format(order.subtotal) }}</span></div>
-      <div class="summary-row"><span>Delivery</span><span>PKR {{ "%.0f"|format(order.delivery_charges) }}</span></div>
+      <div class="summary-row"><span>Delivery</span><span>{% if order.delivery_charges == 0 %}FREE{% else %}PKR {{ "%.0f"|format(order.delivery_charges) }}{% endif %}</span></div>
       {% if order.discount %}<div class="summary-row text-ok"><span>Discount</span><span>-PKR {{ "%.0f"|format(order.discount) }}</span></div>{% endif %}
       <div class="summary-row total"><span>Total</span><span>PKR {{ "%.0f"|format(order.total) }}</span></div>
     </div>
+
+    <!-- Action Buttons -->
+    <div class="order-actions">
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Continue Shopping</a>
+      {% if not current_user %}
+        <a href="{{ url_for('track_order') }}" class="btn btn-outline">Track Another Order</a>
+      {% else %}
+        <a href="{{ url_for('orders') }}" class="btn btn-outline">View All Orders</a>
+      {% endif %}
+    </div>
+
   </div>
 </section>
 {% endblock %}

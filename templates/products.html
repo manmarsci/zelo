@@ -22,7 +22,7 @@
         </form>
       </div>
     </div>
-
+    
     <div class="catalog-layout">
       <!-- Filters -->
       <aside class="filters">
@@ -33,8 +33,13 @@
           <div class="filter-group">
             <h4>Category</h4>
             <label><input type="radio" name="category" value="" {{ '' if current_category else 'checked' }} onchange="this.form.submit()"> All</label>
+            
+            <!-- Only show these 3 categories -->
+            {% set allowed_cats = ['unstitched', 'patches', 'laces'] %}
             {% for c in categories %}
-              <label><input type="radio" name="category" value="{{ c.slug }}" {{ 'checked' if current_category==c.slug }} onchange="this.form.submit()"> {{ c.name }}</label>
+              {% if c.slug in allowed_cats %}
+                <label><input type="radio" name="category" value="{{ c.slug }}" {{ 'checked' if current_category==c.slug }} onchange="this.form.submit()"> {{ c.name }}</label>
+              {% endif %}
             {% endfor %}
           </div>
 

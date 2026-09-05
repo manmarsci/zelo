@@ -1,113 +1,388 @@
 {% extends "base.html" %}
-{% block title %}Checkout{% endblock %}
+{% block title %}Checkout — ZELO LIVE BOUTIQUE{% endblock %}
+
 {% block content %}
-<section class="section">
-  <div class="container">
-    <h1>Checkout</h1>
-    <form method="post" class="checkout-layout">
-      <div class="checkout-form">
-        <h3>Contact {% if not user %}(Guest Checkout){% endif %}</h3>
-        {% if not user %}
-          <div class="form-row">
-            <input type="text" name="guest_name" placeholder="Full Name *" required />
-          </div>
-          <div class="form-row-2">
-            <input type="email" name="guest_email" placeholder="Email *" required />
-            <input type="tel" name="guest_phone" placeholder="Mobile Number *" required />
-          </div>
-        {% endif %}
+<style>
+  .footer, .announcement { display: none !important; }
+  body { background: #faf7f2; }
+</style>
+<div class="shopify-checkout">
+  <!-- Top Bar -->
+  <div class="sc-topbar">
+    <div class="sc-topbar-inner">
+      <a href="{{ url_for('index') }}" class="sc-logo">
+        <span class="sc-logo-mark">Z</span>
+        <span class="sc-logo-text">ZELO LIVE</span>
+      </a>
+      <div class="sc-cart-link">
+        <span class="sc-cart-icon">🛒</span>
+        <a href="{{ url_for('cart') }}">Cart</a>
+      </div>
+    </div>
+  </div>
 
-        <h3>Delivery Address</h3>
-        {% if addresses %}
-          <div class="saved-addresses">
-            {% for a in addresses %}
-              <label class="address-card">
-                <input type="radio" name="use_address" value="{{ a.id }}" onclick="fillAddress(this)" data-name="{{ a.full_name }}" data-phone="{{ a.phone }}" data-address="{{ a.address }}" data-city="{{ a.city }}" data-province="{{ a.province }}" data-postal="{{ a.postal_code }}" />
-                <div>
-                  <strong>{{ a.full_name }}</strong> — {{ a.phone }}<br/>
-                  {{ a.address }}, {{ a.city }}, {{ a.province }} {{ a.postal_code }}
-                </div>
+  <!-- Breadcrumb -->
+  <div class="sc-breadcrumb">
+    <div class="sc-breadcrumb-inner">
+      <a href="{{ url_for('cart') }}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Return to cart
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <form method="post" class="sc-main">
+    <div class="sc-container">
+      
+      <!-- LEFT: Form -->
+      <div class="sc-form">
+        
+        <!-- Contact Section -->
+        <div class="sc-section">
+          <div class="sc-section-header">
+            <h2>Contact</h2>
+            {% if user %}
+              <span class="sc-section-sub">{{ user.email }}</span>
+            {% endif %}
+          </div>
+          <div class="sc-section-body">
+            {% if user %}
+              <div class="sc-logged-in">
+                <span>Logged in as <strong>{{ user.email }}</strong></span>
+                <a href="{{ url_for('logout') }}">Log out</a>
+              </div>
+            {% else %}
+              <div class="sc-field">
+                <label>Email</label>
+                <input type="email" name="guest_email" placeholder="Enter your email" required />
+              </div>
+              <label class="sc-checkbox">
+                <input type="checkbox" name="newsletter" />
+                <span>Email me with news and offers</span>
               </label>
-            {% endfor %}
+            {% endif %}
           </div>
-        {% endif %}
-
-        <div class="form-row">
-          <input type="text" name="shipping_name" placeholder="Full Name *" required />
-        </div>
-        <div class="form-row">
-          <input type="tel" name="shipping_phone" placeholder="Mobile Number *" required />
-        </div>
-        <div class="form-row">
-          <textarea name="shipping_address" placeholder="Complete Address (House/Street/Area) *" required></textarea>
-        </div>
-        <div class="form-row-3">
-          <input type="text" name="shipping_city" placeholder="City *" required />
-          <select name="shipping_province" required>
-            <option value="">Province *</option>
-            <option>Punjab</option><option>Sindh</option><option>KPK</option>
-            <option>Balochistan</option><option>Islamabad</option><option>Gilgit-Baltistan</option>
-            <option>AJK</option>
-          </select>
-          <input type="text" name="shipping_postal" placeholder="Postal Code" />
         </div>
 
-        <h3>Payment Method</h3>
-        <div class="payment-method-box">
-          <label class="pay-option">
-            <input type="radio" name="payment_method" value="JazzCash" checked />
-            <div>
-              <strong>💳 JazzCash</strong><br/>
-              <small class="muted">Pay via JazzCash and upload payment proof</small>
+        <!-- Shipping Address Section -->
+        <div class="sc-section">
+          <div class="sc-section-header">
+            <h2>Shipping address</h2>
+          </div>
+          <div class="sc-section-body">
+            
+            {% if addresses %}
+              <div class="sc-address-toggle">
+                <label class="sc-radio-pill">
+                  <input type="radio" name="use_saved" value="no" checked onchange="toggleAddressMode('new')" />
+                  <span>Enter a new address</span>
+                </label>
+                <label class="sc-radio-pill">
+                  <input type="radio" name="use_saved" value="yes" onchange="toggleAddressMode('saved')" />
+                  <span>Use saved address</span>
+                </label>
+              </div>
+
+              <div id="savedAddressBlock" class="sc-saved-address" style="display:none">
+                <div class="sc-field">
+                  <label>Select saved address</label>
+                  <select name="saved_address_id" id="savedAddressSelect">
+                    <option value="">Choose an address</option>
+                    {% for a in addresses %}
+                      <option value="{{ a.id }}" 
+                        data-name="{{ a.full_name }}" 
+                        data-phone="{{ a.phone }}" 
+                        data-address="{{ a.address }}" 
+                        data-city="{{ a.city }}" 
+                        data-province="{{ a.province }}" 
+                        data-postal="{{ a.postal_code }}">
+                        {{ a.full_name }} — {{ a.address }}, {{ a.city }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            {% endif %}
+
+            <div id="newAddressBlock">
+              {% if not user %}
+                <div class="sc-row-2">
+                  <div class="sc-field">
+                    <label>Full name</label>
+                    <input type="text" name="guest_name" placeholder="First and last name" required />
+                  </div>
+                  <div class="sc-field">
+                    <label>Phone number</label>
+                    <input type="tel" name="guest_phone" placeholder="+92 300 1234567" required />
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="sc-row-2">
+                <div class="sc-field">
+                  <label>Recipient name</label>
+                  <input type="text" name="shipping_name" placeholder="Name of recipient" required />
+                </div>
+                <div class="sc-field">
+                  <label>Recipient phone</label>
+                  <input type="tel" name="shipping_phone" placeholder="+92 300 1234567" required />
+                </div>
+              </div>
+
+              <div class="sc-field">
+                <label>Address</label>
+                <input type="text" name="shipping_address" placeholder="House number and street name" required />
+              </div>
+
+              <div class="sc-field">
+                <label>Apartment, suite, etc. (optional)</label>
+                <input type="text" name="shipping_address2" placeholder="Apt, suite, building, etc." />
+              </div>
+
+              <div class="sc-row-3">
+                <div class="sc-field">
+                  <label>City</label>
+                  <input type="text" name="shipping_city" placeholder="City" required />
+                </div>
+                <div class="sc-field">
+                  <label>Province</label>
+                  <select name="shipping_province" required>
+                    <option value="">Select province</option>
+                    <option>Punjab</option>
+                    <option>Sindh</option>
+                    <option>KPK</option>
+                    <option>Balochistan</option>
+                    <option>Islamabad</option>
+                    <option>Gilgit-Baltistan</option>
+                    <option>AJK</option>
+                  </select>
+                </div>
+                <div class="sc-field">
+                  <label>Postal code (optional)</label>
+                  <input type="text" name="shipping_postal" placeholder="Postal code" />
+                </div>
+              </div>
+
+              <label class="sc-checkbox">
+                <input type="checkbox" name="save_address" />
+                <span>Save this information for next time</span>
+              </label>
             </div>
-          </label>
-          <label class="pay-option">
-            <input type="radio" name="payment_method" value="COD" />
-            <div>
-              <strong>💵 Cash on Delivery</strong><br/>
-              <small class="muted">Pay when you receive your order</small>
-            </div>
-          </label>
+          </div>
         </div>
 
-        <h3>Coupon Code</h3>
-        <div class="coupon-row">
-          <input type="text" name="coupon_code" placeholder="Enter code (e.g. WELCOME10)" value="{{ coupon_code|default('') }}" />
+        <!-- Shipping Method Section -->
+        <div class="sc-section">
+          <div class="sc-section-header">
+            <h2>Shipping method</h2>
+          </div>
+          <div class="sc-section-body">
+            <div class="sc-shipping-option">
+              <div class="sc-shipping-radio">
+                <input type="radio" name="shipping_method" value="standard" checked id="shipStd" />
+                <label for="shipStd">
+                  <strong>Standard Delivery</strong>
+                  <span class="sc-shipping-time">3–5 business days</span>
+                </label>
+              </div>
+              <div class="sc-shipping-price">
+                {% if delivery == 0 %}
+                  <span class="sc-free">Free</span>
+                {% else %}
+                  PKR {{ "%.0f"|format(delivery) }}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="sc-section sc-section-last">
+          <div class="sc-section-header">
+            <h2>Payment</h2>
+            <span class="sc-section-sub">All transactions are secure and encrypted</span>
+          </div>
+          <div class="sc-section-body">
+            <div class="sc-payment-selected">
+              <div class="sc-payment-header">
+                <div class="sc-payment-radio">
+                  <input type="radio" name="payment_method" value="JazzCash" checked id="payJC" disabled />
+                  <label for="payJC">
+                    <strong>JazzCash</strong>
+                  </label>
+                </div>
+                <div class="sc-payment-icons">
+                  <span class="sc-payment-badge">💳 Mobile Payment</span>
+                </div>
+              </div>
+              <div class="sc-payment-body">
+                <p>After clicking <strong>"Complete order"</strong>, you'll receive instructions to pay via JazzCash and upload your payment proof.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <aside class="cart-summary">
-        <h3>Order Summary</h3>
-        {% for it in items %}
-          <div class="summary-item">
-            <div>
-              <div class="small">{{ it.name }} × {{ it.quantity }}</div>
-              {% if it.size or it.color %}<div class="muted small">{{ it.size }} {{ it.color }}</div>{% endif %}
-            </div>
-            <div>PKR {{ "%.0f"|format((it.sale_price or it.original_price) * it.quantity) }}</div>
+      <!-- RIGHT: Order Summary -->
+      <div class="sc-summary">
+        <div class="sc-summary-inner">
+          
+          <!-- Items -->
+          <div class="sc-summary-items">
+            {% for it in items %}
+              <div class="sc-summary-item">
+                <div class="sc-item-image">
+                  <img src="{{ it.image or 'https://via.placeholder.com/64' }}" alt="{{ it.name }}" />
+                  {% if it.quantity > 1 %}
+                    <span class="sc-item-qty">{{ it.quantity }}</span>
+                  {% elif it.quantity == 0 %}
+                    <span class="sc-item-qty sc-item-unavailable">0</span>
+                  {% endif %}
+                </div>
+                <div class="sc-item-details">
+                  <div class="sc-item-name">{{ it.name }}</div>
+                  {% if it.size or it.color %}
+                    <div class="sc-item-meta">
+                      {% if it.size %}Size: {{ it.size }}{% endif %}
+                      {% if it.size and it.color %} / {% endif %}
+                      {% if it.color %}Color: {{ it.color }}{% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="sc-item-price">
+                  PKR {{ "%.0f"|format((it.sale_price or it.original_price) * it.quantity) }}
+                </div>
+              </div>
+            {% endfor %}
           </div>
-        {% endfor %}
-        <hr/>
-        <div class="summary-row"><span>Subtotal</span><span>PKR {{ "%.0f"|format(subtotal) }}</span></div>
-        <div class="summary-row"><span>Delivery</span><span>{% if delivery == 0 %}FREE{% else %}PKR {{ "%.0f"|format(delivery) }}{% endif %}</span></div>
-        {% if discount > 0 %}<div class="summary-row text-ok"><span>Discount</span><span>-PKR {{ "%.0f"|format(discount) }}</span></div>{% endif %}
-        <div class="summary-row total"><span>Total</span><span>PKR {{ "%.0f"|format(total) }}</span></div>
-        <button type="submit" class="btn btn-primary btn-block">Place Order</button>
-        <p class="muted small">By placing this order you agree to our Terms of Service.</p>
-      </aside>
-    </form>
+
+          <!-- Discount Code -->
+          <div class="sc-discount">
+            <div class="sc-discount-toggle" onclick="toggleDiscount()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              <span>Discount code or gift card</span>
+              <svg class="sc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="sc-discount-form" id="discountForm" style="display:none">
+              <div class="sc-discount-input-wrap">
+                <input type="text" name="coupon_code" placeholder="Enter code" value="{{ coupon_code|default('') }}" />
+                <button type="button" class="sc-apply-btn" onclick="this.closest('form').submit()">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="sc-totals">
+            <div class="sc-total-row">
+              <span>Subtotal</span>
+              <span>PKR {{ "%.0f"|format(subtotal) }}</span>
+            </div>
+            <div class="sc-total-row">
+              <span>Shipping</span>
+              <span>
+                {% if delivery == 0 %}
+                  <span class="sc-free">Free</span>
+                {% else %}
+                  PKR {{ "%.0f"|format(delivery) }}
+                {% endif %}
+              </span>
+            </div>
+            {% if discount > 0 %}
+              <div class="sc-total-row sc-discount-row">
+                <span>Discount</span>
+                <span>-PKR {{ "%.0f"|format(discount) }}</span>
+              </div>
+            {% endif %}
+            <div class="sc-total-row sc-total-final">
+              <span>Total</span>
+              <span>
+                <small class="sc-currency">PKR</small>
+                {{ "%.0f"|format(total) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="sc-complete-btn">
+            Complete order →
+          </button>
+
+          <!-- Trust Badges -->
+          <div class="sc-trust">
+            <div class="sc-trust-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <span>Secure checkout</span>
+            </div>
+            <div class="sc-trust-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <span>Fast delivery</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+  <!-- Mobile Order Summary Toggle -->
+  <div class="sc-mobile-summary-toggle" onclick="toggleMobileSummary()">
+    <span>Show order summary</span>
+    <svg class="sc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
-</section>
+</div>
 
 <script>
-function fillAddress(radio) {
-  const d = radio.dataset;
-  document.querySelector('[name=shipping_name]').value = d.name;
-  document.querySelector('[name=shipping_phone]').value = d.phone;
-  document.querySelector('[name=shipping_address]').value = d.address;
-  document.querySelector('[name=shipping_city]').value = d.city;
-  document.querySelector('[name=shipping_province]').value = d.province;
-  document.querySelector('[name=shipping_postal]').value = d.postal;
+function toggleAddressMode(mode) {
+  document.getElementById('savedAddressBlock').style.display = mode === 'saved' ? 'block' : 'none';
+  document.getElementById('newAddressBlock').style.display = mode === 'new' ? 'block' : 'none';
+}
+
+function toggleDiscount() {
+  const form = document.getElementById('discountForm');
+  const chevron = document.querySelector('.sc-discount-toggle .sc-chevron');
+  if (form.style.display === 'none') {
+    form.style.display = 'block';
+    chevron.style.transform = 'rotate(180deg)';
+  } else {
+    form.style.display = 'none';
+    chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
+function toggleMobileSummary() {
+  const summary = document.querySelector('.sc-summary');
+  const toggle = document.querySelector('.sc-mobile-summary-toggle');
+  const chevron = toggle.querySelector('.sc-chevron');
+  const label = toggle.querySelector('span');
+  
+  if (summary.classList.contains('sc-summary-open')) {
+    summary.classList.remove('sc-summary-open');
+    chevron.style.transform = 'rotate(0deg)';
+    label.textContent = 'Show order summary';
+  } else {
+    summary.classList.add('sc-summary-open');
+    chevron.style.transform = 'rotate(180deg)';
+    label.textContent = 'Hide order summary';
+  }
+}
+
+// Fill new address fields when saved address is selected
+const savedSelect = document.getElementById('savedAddressSelect');
+if (savedSelect) {
+  savedSelect.addEventListener('change', function(e) {
+    const opt = e.target.options[e.target.selectedIndex];
+    if (opt.dataset.name) {
+      const nameField = document.querySelector('[name=shipping_name]');
+      const phoneField = document.querySelector('[name=shipping_phone]');
+      if (nameField) nameField.value = opt.dataset.name;
+      if (phoneField) phoneField.value = opt.dataset.phone;
+      document.querySelector('[name=shipping_address]').value = opt.dataset.address;
+      document.querySelector('[name=shipping_city]').value = opt.dataset.city;
+      document.querySelector('[name=shipping_province]').value = opt.dataset.province;
+      document.querySelector('[name=shipping_postal]').value = opt.dataset.postal;
+    }
+  });
 }
 </script>
 {% endblock %}

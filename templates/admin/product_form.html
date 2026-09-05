@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block content %}
 <h1>{{ "Edit" if product else "Add" }} Product</h1>
-<form method="post" enctype="multipart/form-data" class="admin-form">
+<form method="post" class="admin-form">
   <div class="form-row-2">
     <div>
       <label>Product Name *</label>
@@ -64,25 +64,118 @@
     <label><input type="checkbox" name="is_active" {{ 'checked' if not product or product.is_active }} /> Active</label>
   </div>
 
-  <label>Upload Images</label>
-  <input type="file" name="images" multiple accept="image/*" />
-
-  {% if images %}
-    <div class="image-list">
-      {% for img in images %}
-        <div class="image-thumb">
-          <img src="{{ img.image_url }}" />
-          <form method="post" action="{{ url_for('admin_image_delete', iid=img.id) }}">
-            <button class="btn-link text-danger">Remove</button>
-          </form>
+  <!-- IMAGES SECTION -->
+  <div class="image-urls-section">
+    <label>Product Images (Cloudinary URLs)</label>
+    <p class="muted small" style="margin-bottom:1rem">Paste Cloudinary image URLs below. Add up to 5 images.</p>
+    
+    <div id="imageUrlFields">
+      <!-- Existing images will be loaded here by JS if editing, or we render them -->
+      {% if images %}
+        {% for img in images %}
+          <div class="image-url-row">
+            <input type="text" name="image_urls[]" value="{{ img.image_url }}" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
+            <img src="{{ img.image_url }}" class="img-preview" style="display:block" />
+            <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="image-url-row">
+          <input type="text" name="image_urls[]" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
+          <img src="" class="img-preview" style="display:none" />
+          <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
         </div>
-      {% endfor %}
+      {% endif %}
     </div>
-  {% endif %}
+    
+    <button type="button" class="btn btn-outline" onclick="addImageUrlField()" style="margin-top:.5rem">+ Add Another Image URL</button>
+  </div>
+
+  <!-- SMART FEATURES SECTION -->
+  <div class="features-admin-section">
+    <label>Product Features ("Why You'll Love It")</label>
+    <p class="muted small" style="margin-bottom:.5rem">Paste features below. Each line should be in format: <strong>Title: Description</strong></p>
+    
+    <textarea name="features_raw" rows="8" placeholder="Textured Dobby Lawn Fabric: Crafted from soft, breathable dobby lawn...&#10;&#10;Geometric Vertical Line Pattern: Accentuating vertical lines create a sleek look..." 
+              oninput="parseFeatures(this.value)" style="font-family:monospace; font-size:.9rem;">{% if product.features_list %}{% for f in product.features_list %}{{ f.title }}: {{ f.desc }}
+{% endfor %}{% endif %}</textarea>
+    
+    <!-- Hidden fields to store parsed JSON -->
+    <input type="hidden" name="features_json" id="features_json" value="{{ product.features if product else '[]' }}" />
+    
+    <div id="features_preview" style="margin-top:1rem"></div>
+  </div>
+
+<script>
+function parseFeatures(text) {
+  const lines = text.split('\n').filter(l => l.trim() !== '');
+  const features = [];
+  
+  lines.forEach(line => {
+    // Split by first colon only
+    const parts = line.split(':');
+    if (parts.length >= 2) {
+      features.push({
+        title: parts[0].trim(),
+        desc: parts.slice(1).join(':').trim()
+      });
+    } else if (line.trim().length > 0) {
+      // If no colon, treat whole line as title with empty desc
+      features.push({ title: line.trim(), desc: '' });
+    }
+  });
+  
+  // Update hidden input
+  document.getElementById('features_json').value = JSON.stringify(features);
+  
+  // Show live preview
+  const preview = document.getElementById('features_preview');
+  if (features.length === 0) {
+    preview.innerHTML = '<p class="muted small">Start typing features above...</p>';
+  } else {
+    preview.innerHTML = features.map((f, i) => `
+      <div style="padding:.5rem; background:#fff; border:1px solid #e8e1d1; border-radius:4px; margin-bottom:.5rem; font-size:.85rem;">
+        <strong>${i+1}. ${f.title}</strong><br/>
+        <span class="muted">${f.desc || '(No description)'}</span>
+      </div>
+    `).join('');
+  }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const textarea = document.querySelector('[name=features_raw]');
+  if (textarea.value.trim()) parseFeatures(textarea.value);
+});
+</script>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">{{ "Update" if product else "Create" }} Product</button>
     <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
   </div>
 </form>
+
+<script>
+function addImageUrlField() {
+  const container = document.getElementById('imageUrlFields');
+  const newRow = document.createElement('div');
+  newRow.className = 'image-url-row';
+  newRow.innerHTML = `
+    <input type="text" name="image_urls[]" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
+    <img src="" class="img-preview" style="display:none" />
+    <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
+  `;
+  container.appendChild(newRow);
+}
+
+function previewImage(input) {
+  const img = input.nextElementSibling;
+  if (input.value.startsWith('http')) {
+    img.src = input.value;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+</script>
 {% endblock %}

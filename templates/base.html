@@ -13,9 +13,8 @@
 <body>
   <!-- Announcement bar -->
   <div class="announcement">
-    ✨ Free delivery on orders above PKR 3000 • Brand Leftovers at Unbeatable Prices
+     FREE DELIVERY on orders above PKR 5000 • Only PKR 300 for smaller orders • WhatsApp: 0321 4857054
   </div>
-
   <!-- Header -->
   <header class="header">
     <div class="container header-inner">
@@ -78,13 +77,13 @@
       <div>
         <h4>Help</h4>
         <ul>
+          <li><a href="{{ url_for('track_order') }}">Track Your Order</a></li>
           <li><a href="#">Shipping Policy</a></li>
           <li><a href="#">Return & Exchange</a></li>
           <li><a href="#">Privacy Policy</a></li>
           <li><a href="#">Terms of Service</a></li>
         </ul>
       </div>
-      <div>
         <h4>Contact</h4>
         <ul>
           <li>📞 +92 304 5519335</li>
@@ -103,6 +102,9 @@
     </div>
   </footer>
 
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  
+    {% include 'whatsapp_button.html' %}
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

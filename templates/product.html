@@ -3,7 +3,12 @@
 {% set discount = (((product.original_price - price) / product.original_price) * 100)|round|int if product.sale_price else 0 %}
 
 {% block title %}{{ product.name }} — ZELO LIVE BOUTIQUE{% endblock %}
+
 {% block content %}
+<style>
+  .footer, .announcement { display: none !important; }
+</style>
+
 <section class="section">
   <div class="container">
     <nav class="breadcrumb">
@@ -13,6 +18,7 @@
     </nav>
 
     <div class="product-detail">
+      <!-- LEFT: Image Gallery -->
       <div class="product-gallery">
         {% set imgs = images if images else [{'image_url': 'https://via.placeholder.com/600x750?text=ZELO'}] %}
         <div class="gallery-main">
@@ -21,12 +27,14 @@
         {% if imgs|length > 1 %}
           <div class="gallery-thumbs">
             {% for img in imgs %}
-              <img src="{{ img.image_url }}" alt="" class="thumb {{ 'active' if loop.first }}" onclick="document.getElementById('mainImage').src='{{ img.image_url }}'; document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active')); this.classList.add('active');" />
+              <img src="{{ img.image_url }}" alt="" class="thumb {{ 'active' if loop.first }}" 
+                   onclick="document.getElementById('mainImage').src='{{ img.image_url }}'; document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active')); this.classList.add('active');" />
             {% endfor %}
           </div>
         {% endif %}
       </div>
 
+      <!-- RIGHT: Product Summary -->
       <div class="product-summary">
         <div class="product-brand-line">{{ product.brand_name }} {% if product.category_name %}• {{ product.category_name }}{% endif %}</div>
         <h1>{{ product.name }}</h1>
@@ -50,7 +58,7 @@
         <form method="post" action="{{ url_for('cart_add') }}" class="buy-form">
           <input type="hidden" name="product_id" value="{{ product.id }}" />
 
-                    {% if product.sizes_list %}
+          {% if product.sizes_list %}
             <div class="option-group">
               <label>Size</label>
               <div class="size-options">
@@ -61,7 +69,7 @@
             </div>
           {% endif %}
 
-                    {% if product.colors_list %}
+          {% if product.colors_list %}
             <div class="option-group">
               <label>Color</label>
               <div class="size-options">
@@ -87,19 +95,50 @@
           </div>
         </form>
 
-        <div class="product-meta">
+        <!-- WhatsApp Order Button - with proper spacing -->
+        <div class="whatsapp-order-section">
+          <p class="whatsapp-label">Prefer to order via WhatsApp?</p>
+          <a href="https://wa.me/923214857054?text=Assalam%20O%20Alaikum!%20I%20want%20to%20order:%20{{ product.name }}.%20Please%20guide%20me." 
+             class="btn-whatsapp" target="_blank">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="margin-right:.5rem">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+            </svg>
+            ORDER ON WHATSAPP
+          </a>
+        </div>
+
+        <!-- Product Description -->
+        <div class="product-description-section">
           <p><strong>Description:</strong> {{ product.description }}</p>
           {% if product.fabric %}<p><strong>Fabric:</strong> {{ product.fabric }}</p>{% endif %}
-          <p><strong>Brand:</strong> {{ product.brand_name }}</p>
+          {% if product.brand_name %}<p><strong>Brand:</strong> {{ product.brand_name }}</p>{% endif %}
         </div>
 
         <div class="trust-row">
-          <span>🚚 Fast delivery across Pakistan</span>
+          <span> Fast delivery across Pakistan</span>
           <span>💵 Cash on Delivery</span>
           <span>✓ Authentic brand leftover</span>
         </div>
       </div>
     </div>
+
+    <!-- FULL-WIDTH FEATURES SECTION -->
+    {% if product.features_list %}
+    <div class="product-features-full">
+      <div class="container">
+        <h2 class="features-heading">Why You'll Love It</h2>
+        <div class="features-grid-full">
+          {% for f in product.features_list %}
+            <div class="feature-card">
+              <div class="feature-check">✓</div>
+              <h4>{{ f.title }}</h4>
+              <p>{{ f.desc }}</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     {% if related %}
       <div class="section-head" style="margin-top:3rem">
