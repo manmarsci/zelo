@@ -31,11 +31,11 @@ def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
     
-    # Pass home_directory as a PRAGMA directly in the MD connection string
-    # This is the ONLY method that survives MotherDuck's initialization
-    conn = duckdb.connect(
-        f"md:{db}?motherduck_token={token}&home_directory=/tmp"
-    )
+    # Load custom config BEFORE establishing MD connection
+    # This sets home_directory at the lowest level, before MD extension initializes
+    duckdb.sql("SET home_directory='/tmp'")
+    
+    conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
     return conn
 
 
