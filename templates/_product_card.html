@@ -1,29 +1,36 @@
 {% set price = p.sale_price or p.original_price %}
 {% set discount = (((p.original_price - price) / p.original_price) * 100)|round|int if p.sale_price else 0 %}
-<a href="{{ url_for('product_detail', slug=p.slug) }}" class="product-card">
-  <div class="product-image">
-    <img src="{{ p.image or 'https://via.placeholder.com/400x500?text=ZELO' }}" alt="{{ p.name }}" loading="lazy" />
-    <div class="product-badges">
-      {% if p.is_new_arrival %}<span class="badge-tag new">New</span>{% endif %}
-      {% if p.is_sale and discount > 0 %}<span class="badge-tag sale">-{{ discount }}%</span>{% endif %}
+<article class="product-card" itemscope itemtype="https://schema.org/Product">
+  <a href="{{ url_for('product_detail', slug=p.slug) }}" class="product-link" aria-label="View {{ p.name }}">
+    <div class="product-image">
+      <img src="{{ p.image or 'https://via.placeholder.com/400x500?text=ZELO' }}" 
+           alt="{{ p.name }} - {{ p.brand_name }} branded leftover" 
+           loading="lazy" 
+           itemprop="image" />
+      <div class="product-badges">
+        {% if p.is_new_arrival %}<span class="badge-tag new">New</span>{% endif %}
+        {% if p.is_sale and discount > 0 %}<span class="badge-tag sale">-{{ discount }}%</span>{% endif %}
+      </div>
+      {% if p.stock == 0 %}<div class="sold-out">Sold Out</div>{% endif %}
     </div>
-    {% if p.stock == 0 %}<div class="sold-out">Sold Out</div>{% endif %}
-  </div>
-  <div class="product-info">
-    <div class="product-brand">{{ p.brand_name }}</div>
-    <h3 class="product-name">{{ p.name }}</h3>
-    <div class="product-price">
-      {% if p.sale_price %}
-        <span class="price-sale">PKR {{ "%.0f"|format(p.sale_price) }}</span>
-        <span class="price-old">PKR {{ "%.0f"|format(p.original_price) }}</span>
-      {% else %}
-        <span class="price-sale">PKR {{ "%.0f"|format(p.original_price) }}</span>
-      {% endif %}
+    <div class="product-info">
+      <div class="product-brand" itemprop="brand">{{ p.brand_name }}</div>
+      <h3 class="product-name" itemprop="name">{{ p.name }}</h3>
+      <div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+        <meta itemprop="priceCurrency" content="PKR" />
+        {% if p.sale_price %}
+          <span class="price-sale" itemprop="price">PKR {{ "%.0f"|format(p.sale_price) }}</span>
+          <span class="price-old">PKR {{ "%.0f"|format(p.original_price) }}</span>
+        {% else %}
+          <span class="price-sale" itemprop="price">PKR {{ "%.0f"|format(p.original_price) }}</span>
+        {% endif %}
+        <link itemprop="availability" href="{% if p.stock > 0 %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}" />
+      </div>
+      <div class="product-stock">
+        {% if p.stock == 0 %}<span class="text-danger">Out of stock</span>
+        {% elif p.stock < 10 %}<span class="text-warn">Only {{ p.stock }} left</span>
+        {% else %}<span class="text-ok">In stock</span>{% endif %}
+      </div>
     </div>
-    <div class="product-stock">
-      {% if p.stock == 0 %}<span class="text-danger">Out of stock</span>
-      {% elif p.stock < 10 %}<span class="text-warn">Only {{ p.stock }} left</span>
-      {% else %}<span class="text-ok">In stock</span>{% endif %}
-    </div>
-  </div>
-</a>
+  </a>
+</article>

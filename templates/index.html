@@ -102,4 +102,75 @@
     </div>
   </div>
 </section>
+
+<!-- AEO/GEO FAQ Section -->
+<section class="section" style="background: #faf7f2;">
+  <div class="container" style="max-width: 800px;">
+    <h2 style="text-align:center; margin-bottom: 2rem;">Frequently Asked Questions</h2>
+    <div class="faq-container">
+      <details class="faq-item">
+        <summary>What are branded leftover suits and patches?</summary>
+        <p>Branded leftovers are authentic, high-quality unstitched suits, designer patches, and premium laces that were manufactured for top Pakistani and international brands but were not sold in retail stores. We offer them at a fraction of the original price.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Do you deliver across Pakistan?</summary>
+        <p>Yes! ZELO LIVE BOUTIQUE delivers to all major cities and towns across Pakistan, including Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, and Multan. We offer free delivery on orders above PKR 5000.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How can I pay for my order?</summary>
+        <p>We currently accept secure payments via JazzCash. After placing your order, you will receive instructions to transfer the amount to our verified account. We also offer Cash on Delivery for select areas.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How do I track my order?</summary>
+        <p>Once your order is shipped, you will receive a tracking number via WhatsApp or email. You can also use the "Track Your Order" link in our footer to check the real-time status of your shipment.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Are the products original and authentic?</summary>
+        <p>Absolutely. We guarantee 100% authenticity. All our unstitched suits, patches, and laces are sourced directly from brand surplus and overstock inventory. You get premium quality without the premium retail markup.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ Schema for Google & AI Engines -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [{
+    "@type": "Question",
+    "name": "What are branded leftover suits and patches?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Branded leftovers are authentic, high-quality unstitched suits, designer patches, and premium laces that were manufactured for top Pakistani and international brands but were not sold in retail stores. We offer them at a fraction of the original price."
+    }
+  }, {
+    "@type": "Question",
+    "name": "Do you deliver across Pakistan?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes! ZELO LIVE BOUTIQUE delivers to all major cities and towns across Pakistan, including Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, and Multan. We offer free delivery on orders above PKR 5000."
+    }
+  }, {
+    "@type": "Question",
+    "name": "How can I pay for my order?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "We currently accept secure payments via JazzCash. After placing your order, you will receive instructions to transfer the amount to our verified account. We also offer Cash on Delivery for select areas."
+    }
+  }]
+}
+</script>
+
+<style>
+.faq-container { display: flex; flex-direction: column; gap: 1rem; }
+.faq-item { background: #fff; border: 1px solid #e8e1d1; border-radius: 8px; padding: 1rem 1.5rem; }
+.faq-item summary { font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '+'; font-size: 1.5rem; color: #c9a961; }
+.faq-item[open] summary::after { content: '-'; }
+.faq-item p { margin-top: 1rem; color: #5f6b7a; line-height: 1.6; }
+</style>
+
 {% endblock %}
+

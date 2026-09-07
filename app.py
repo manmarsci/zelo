@@ -949,5 +949,65 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# ---------- SEO Routes ----------
+@app.route("/robots.txt")
+def robots_txt():
+    # Dynamically generate robots.txt
+    domain = request.host_url.rstrip('/')
+    content = f"""User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /account
+Disallow: /cart
+
+Sitemap: {domain}/sitemap.xml
+"""
+    return app.response_class(content, mimetype='text/plain')
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    # Dynamically generate sitemap.xml
+    domain = request.host_url.rstrip('/')
+    
+    # Fetch all active products and categories
+    products = query("SELECT slug, created_at FROM products WHERE is_active = TRUE")
+    categories = query("SELECT slug FROM categories")
+    
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    
+    # Static pages
+    static_pages = ['', '/products', '/track-order']
+    for page in static_pages:
+        xml.append(f'''
+        <url>
+            <loc>{domain}{page}</loc>
+            <changefreq>daily</changefreq>
+            <priority>0.8</priority>
+        </url>''')
+        
+    # Products
+    for p in products:
+        xml.append(f'''
+        <url>
+            <loc>{domain}/product/{p['slug']}</loc>
+            <lastmod>{p['created_at'].strftime('%Y-%m-%d') if p['created_at'] else '2026-01-01'}</lastmod>
+            <changefreq>weekly</changefreq>
+            <priority>0.6</priority>
+        </url>''')
+        
+    # Categories
+    for c in categories:
+        xml.append(f'''
+        <url>
+            <loc>{domain}/products?category={c['slug']}</loc>
+            <changefreq>weekly</changefreq>
+            <priority>0.7</priority>
+        </url>''')
+
+    xml.append('</urlset>')
+    return app.response_class('\n'.join(xml), mimetype='application/xml')
+
 def handler(request):
     return app(request.environ, lambda *args: None)

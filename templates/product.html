@@ -168,4 +168,34 @@
     <p class="muted">Measurements are approximate. For unstitched, fabric length is provided as per brand standard.</p>
   </div>
 </div>
+
+<!-- Product Schema for SEO & GEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "{{ product.name }}",
+  "image": [
+    {% for img in images %}"{{ img.image_url }}"{% if not loop.last %},{% endif %}{% endfor %}
+  ],
+  "description": "{{ product.description }}",
+  "sku": "{{ product.slug }}",
+  "brand": {
+    "@type": "Brand",
+    "name": "{{ product.brand_name or 'ZELO LIVE BOUTIQUE' }}"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "{{ request.url }}",
+    "priceCurrency": "PKR",
+    "price": "{{ product.sale_price or product.original_price }}",
+    "itemCondition": "https://schema.org/NewCondition",
+    "availability": "{% if product.stock > 0 %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+    "seller": {
+      "@type": "Organization",
+      "name": "ZELO LIVE BOUTIQUE"
+    }
+  }
+}
+</script>
 {% endblock %}
