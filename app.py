@@ -449,18 +449,22 @@ def checkout():
     )
 
     if request.method == "POST":
-        # Collect shipping info
+        # Unified Contact & Shipping Info
         if "user_id" in session:
             user = query_one("SELECT * FROM users WHERE id=?", [session["user_id"]])
+            ship_name = user["name"]
+            ship_phone = user["phone"] or ""
             guest_name, guest_email, guest_phone = user["name"], user["email"], user["phone"] or ""
         else:
-            guest_name = request.form["guest_name"].strip()
+            ship_name = request.form["guest_name"].strip()
+            ship_phone = request.form["guest_phone"].strip()
+            guest_name = ship_name
             guest_email = request.form["guest_email"].strip()
-            guest_phone = request.form["guest_phone"].strip()
+            guest_phone = ship_phone
 
         shipping = {
-            "name": request.form["shipping_name"].strip(),
-            "phone": request.form["shipping_phone"].strip(),
+            "name": ship_name,
+            "phone": ship_phone,
             "address": request.form["shipping_address"].strip(),
             "city": request.form["shipping_city"].strip(),
             "province": request.form["shipping_province"].strip(),
