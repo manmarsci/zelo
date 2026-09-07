@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block content %}
 <h1>Courier Slip Scanner</h1>
-<p class="muted">Upload a photo of a courier slip (TCS, Leopards, CallCourier, etc.). The system will extract the tracking number automatically.</p>
+<p class="muted">Upload a photo of a courier slip. The system will extract the tracking number and create a customer record.</p>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
   
@@ -21,18 +21,24 @@
     </div>
   </div>
 
-  <!-- RIGHT: Save Form -->
+  <!-- RIGHT: Customer & Save Form -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">2. Assign to Order</h3>
+    <h3 style="margin-bottom:1rem;">2. Customer & Tracking Details</h3>
     <form method="post" action="{{ url_for('admin_courier_update') }}">
+      
       <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Select Order *</label>
-        <select name="order_id" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
-          <option value="">-- Choose an Order --</option>
-          {% for o in orders %}
-            <option value="{{ o.id }}">#{{ o.order_number }} - {{ o.shipping_name }} ({{ o.shipping_city }}) - PKR {{ "%.0f"|format(o.total) }}</option>
-          {% endfor %}
-        </select>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name *</label>
+        <input type="text" name="customer_name" required placeholder="e.g. Abdul Manan" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone *</label>
+        <input type="tel" name="customer_phone" required placeholder="e.g. 03001234567" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
+        <input type="text" name="city" placeholder="e.g. Lahore" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
       </div>
 
       <div style="margin-bottom:1rem;">
@@ -56,7 +62,7 @@
         <input type="text" name="tracking_number" id="trackingInput" required placeholder="e.g. 123456789012" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1.1rem; letter-spacing:1px;" />
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width:100%;">Save Tracking Info</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Save Customer & Tracking</button>
     </form>
   </div>
 </div>
@@ -92,7 +98,7 @@
       statusDiv.innerHTML = '✅ Scan complete!';
       extractedDiv.style.display = 'block';
 
-      // Regex to find 10 to 15 digit numbers (standard for Pak couriers)
+      // Regex to find 10 to 15 digit numbers
       const trackingRegex = /\b\d{10,15}\b/g;
       const matches = text.match(trackingRegex) || [];
       const uniqueMatches = [...new Set(matches)];
@@ -107,10 +113,9 @@
           btn.onclick = () => { trackingInput.value = num; };
           suggestedDiv.appendChild(btn);
         });
-        // Auto-fill the first one
         trackingInput.value = uniqueMatches[0];
       } else {
-        suggestedDiv.innerHTML = '<span class="muted small">No obvious tracking numbers found. Please type it manually from the text above.</span>';
+        suggestedDiv.innerHTML = '<span class="muted small">No obvious tracking numbers found. Please type it manually.</span>';
       }
     } catch (err) {
       statusDiv.innerHTML = '❌ Error scanning image. Please try a clearer photo.';

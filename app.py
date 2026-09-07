@@ -798,10 +798,23 @@ def admin_order_add():
             guest_phone = request.form["guest_phone"].strip()
             customer = None
         
-        # Shipping info
+        # Unified Contact & Shipping Info
+        if customer_id:
+            customer = query_one("SELECT * FROM users WHERE id = ?", [customer_id])
+            ship_name = customer["name"]
+            ship_phone = customer["phone"] or ""
+            guest_name, guest_email, guest_phone = None, None, None
+        else:
+            ship_name = request.form["guest_name"].strip()
+            ship_phone = request.form["guest_phone"].strip()
+            guest_name = ship_name
+            guest_email = request.form["guest_email"].strip()
+            guest_phone = ship_phone
+            customer = None
+
         shipping = {
-            "name": request.form["shipping_name"].strip(),
-            "phone": request.form["shipping_phone"].strip(),
+            "name": ship_name,
+            "phone": ship_phone,
             "address": request.form["shipping_address"].strip(),
             "city": request.form["shipping_city"].strip(),
             "province": request.form["shipping_province"].strip(),
@@ -1019,58 +1032,75 @@ def sitemap_xml():
 def admin_map():
     # Get order counts by city
     city_stats = query("""
-        SELECT shipping_city, COUNT(*) as count 
+        SELECT shipping_city as city, COUNT(*) as count 
         FROM orders 
         WHERE shipping_city IS NOT NULL AND shipping_city != '' 
-        GROUP BY shipping_city 
-        ORDER BY count DESC
+        GROUP BY shipping_city
     """)
     
-    # Get order counts by province
-    province_stats = query("""
-        SELECT shipping_province, COUNT(*) as count 
-        FROM orders 
-        WHERE shipping_province IS NOT NULL AND shipping_province != '' 
-        GROUP BY shipping_province 
-        ORDER BY count DESC
+    # Get slip counts by city (since you don't have orders yet)
+    slip_stats = query("""
+        SELECT city, COUNT(*) as count 
+        FROM courier_slips 
+        WHERE city IS NOT NULL AND city != '' 
+        GROUP BY city
     """)
     
-    return render_template("admin/map.html", city_stats=city_stats, province_stats=province_stats)
+    # Merge the data
+    merged = {}
+    for row in city_stats:
+        c = row['city'].title()
+        merged[c] = merged.get(c, 0) + row['count']
+    for row in slip_stats:
+        c = row['city'].title()
+        merged[c] = merged.get(c, 0) + row['count']
+        
+    # Convert to JSON for JavaScript
+    map_data = json.dumps([{"city": k, "count": v} for k, v in merged.items()])
+    
+    return render_template("admin/map.html", map_data=map_data)
 
 
 # ---------- Admin: Courier Scanner (GET) ----------
 @app.route("/admin/courier-scanner")
 @admin_required
 def admin_courier_scanner():
-    # Get pending/shipped orders that don't have tracking numbers yet
-    orders = query("""
-        SELECT id, order_number, shipping_name, shipping_city, total 
-        FROM orders 
-        WHERE tracking_number IS NULL OR tracking_number = '' 
-        ORDER BY created_at DESC
-    """)
-    return render_template("admin/courier_scanner.html", orders=orders)
+    return render_template("admin/courier_scanner.html")
 
 
 # ---------- Admin: Courier Scanner (POST) ----------
 @app.route("/admin/courier-scanner/update", methods=["POST"])
 @admin_required
 def admin_courier_update():
-    order_id = request.form.get("order_id")
+    name = request.form.get("customer_name", "").strip()
+    phone = request.form.get("customer_phone", "").strip()
+    city = request.form.get("city", "").strip()
     tracking_number = request.form.get("tracking_number", "").strip()
     courier_name = request.form.get("courier_name", "").strip()
     
-    if not order_id or not tracking_number:
-        flash("Order and Tracking Number are required.", "error")
+    if not name or not phone or not tracking_number:
+        flash("Name, Phone, and Tracking Number are required.", "error")
         return redirect(url_for("admin_courier_scanner"))
     
+    # 1. Create Customer if they don't exist
+    existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
+    if not existing_user:
+        placeholder_email = f"{phone}@zelolive.com"
+        execute(
+            "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
+            [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
+        )
+        flash(f"New customer '{name}' created successfully.", "success")
+    else:
+        flash(f"Customer '{name}' already exists. Slip saved.", "info")
+
+    # 2. Save the Courier Slip
     execute("""
-        UPDATE orders 
-        SET tracking_number = ?, courier_name = ? 
-        WHERE id = ?
-    """, [tracking_number, courier_name, order_id])
+        INSERT INTO courier_slips (customer_name, customer_phone, city, tracking_number, courier_name)
+        VALUES (?, ?, ?, ?, ?)
+    """, [name, phone, city, tracking_number, courier_name])
     
-    flash(f"Tracking {tracking_number} added to order successfully!", "success")
+    flash(f"Tracking {tracking_number} saved for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
 
 def handler(request):
