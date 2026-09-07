@@ -2,6 +2,16 @@
 {% block title %}Order #{{ order.order_number }}{% endblock %}
 
 {% block content %}
+<style>
+  /* Ensure the detail grid handles 4 items beautifully */
+  .order-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+</style>
+
 <section class="section">
   <div class="container">
     
@@ -55,6 +65,8 @@
 
     <!-- Order Details Grid -->
     <div class="order-detail-grid">
+      
+      <!-- 1. Shipping Address -->
       <div class="order-detail-box">
         <h3>📦 Shipping Address</h3>
         <p>
@@ -65,6 +77,8 @@
           {{ order.shipping_city }}, {{ order.shipping_province }} {{ order.shipping_postal }}
         </p>
       </div>
+
+      <!-- 2. Payment -->
       <div class="order-detail-box">
         <h3>💳 Payment</h3>
         
@@ -94,10 +108,28 @@
           <p><strong>{{ order.payment_method }}</strong></p>
         {% endif %}
       </div>
+
+      <!-- 3. Tracking Info (NEW) -->
+      {% if order.tracking_number %}
+      <div class="order-detail-box">
+        <h3>🚚 Tracking Info</h3>
+        <p>
+          <strong style="color:#c9a961;">{{ order.courier_name }}</strong><br/>
+          <span style="font-size:1.1rem; font-weight:600; letter-spacing:1px; display:block; margin-top:.25rem;">{{ order.tracking_number }}</span>
+        </p>
+        <a href="https://www.google.com/search?q={{ order.courier_name }}+track+{{ order.tracking_number }}" 
+           target="_blank" class="btn-link small" style="margin-top:.5rem; display:inline-block;">
+          Track on Google →
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- 4. Order Date -->
       <div class="order-detail-box">
         <h3>📅 Order Date</h3>
         <p>{{ order.created_at }}</p>
       </div>
+
     </div>
 
     <!-- Payment Instructions for JazzCash (if not yet paid) -->
@@ -128,7 +160,7 @@
           </a>
           <a href="https://wa.me/923214857054?text=Assalam%20O%20Alaikum!%20I%20have%20a%20question%20about%20order%20#{{ order.order_number }}" 
              class="btn btn-outline" target="_blank">
-            📞 Contact Support
+             Contact Support
           </a>
         </div>
       </div>
@@ -148,7 +180,7 @@
           {% if it.image_url %}
             <img src="{{ it.image_url }}" alt="{{ it.product_name }}" class="order-item-img" />
           {% else %}
-            <div class="order-item-img-placeholder">🛍</div>
+            <div class="order-item-img-placeholder"></div>
           {% endif %}
           <div class="order-item-info">
             <div class="order-item-name">{{ it.product_name }}</div>

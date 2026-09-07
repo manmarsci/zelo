@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Customer Location Map</h1>
+
+<div class="admin-grid-2" style="margin-bottom: 2rem;">
+  <div class="stat-card">
+    <div class="stat-label">Top City</div>
+    <div class="stat-value" style="font-size:1.4rem">{{ city_stats[0].shipping_city if city_stats else 'N/A' }}</div>
+    <div class="muted small">{{ city_stats[0].count if city_stats else 0 }} orders</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Top Province</div>
+    <div class="stat-value" style="font-size:1.4rem">{{ province_stats[0].shipping_province if province_stats else 'N/A' }}</div>
+    <div class="muted small">{{ province_stats[0].count if province_stats else 0 }} orders</div>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.5rem;">
+  <!-- Map Container -->
+  <div style="background:#fff; border-radius:8px; border:1px solid #e8e1d1; overflow:hidden;">
+    <div id="pakistanMap" style="height: 500px; width: 100%;"></div>
+  </div>
+
+  <!-- Stats Lists -->
+  <div style="background:#fff; border-radius:8px; border:1px solid #e8e1d1; padding:1.5rem; max-height:500px; overflow-y:auto;">
+    <h3 style="margin-bottom:1rem; font-size:1.1rem;">Orders by City</h3>
+    <table class="admin-table" style="font-size:.85rem;">
+      <tbody>
+        {% for c in city_stats %}
+          <tr>
+            <td>{{ c.shipping_city }}</td>
+            <td style="text-align:right; font-weight:600;">{{ c.count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Initialize Map centered on Pakistan
+  const map = L.map('pakistanMap').setView([30.3753, 69.3451], 5);
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Hardcoded coordinates for major Pakistani cities
+  const cityCoords = {
+    "Lahore": [31.5204, 74.3587], "Karachi": [24.8607, 67.0011],
+    "Islamabad": [33.6844, 73.0479], "Rawalpindi": [33.5651, 73.0169],
+    "Faisalabad": [31.4504, 73.1350], "Multan": [30.1575, 71.5249],
+    "Peshawar": [34.0151, 71.5249], "Quetta": [30.1798, 66.9750],
+    "Sialkot": [32.4945, 74.5229], "Gujranwala": [32.1877, 74.1945],
+    "Hyderabad": [25.3960, 68.3578], "Bahawalpur": [29.3956, 71.6722],
+    "Sargodha": [32.0836, 72.6711], "Sukkur": [27.7052, 68.8574],
+    "Larkana": [27.5590, 68.2120], "Abbottabad": [34.1495, 73.1995],
+    "Mardan": [34.1958, 72.0447], "Gujrat": [32.5742, 74.0789],
+    "Sahiwal": [30.6706, 73.1064], "Mingora": [34.7797, 72.3602],
+    "Nawabshah": [26.2442, 68.4100], "Chiniot": [31.7200, 72.9789],
+    "Jhelum": [32.9425, 73.7257], "Kasur": [31.1177, 74.4464],
+    "Rahim Yar Khan": [28.4202, 70.2952], "Dera Ghazi Khan": [30.0561, 70.6403],
+    "Muzaffarabad": [34.3700, 73.4711], "Mirpur": [33.1479, 73.7500],
+    "Gilgit": [35.9208, 74.3144], "Skardu": [35.2977, 75.6333],
+    "Gwadar": [25.1264, 62.3228], "Turbat": [26.0031, 63.0544],
+    "Zhob": [31.3417, 69.4486], "Sibi": [29.5431, 67.8778],
+    "Khuzdar": [27.8111, 66.6097], "Chaman": [30.9250, 66.4500],
+    "Dera Ismail Khan": [31.8327, 70.9019], "Bannu": [32.9889, 70.6011],
+    "Kohat": [33.5869, 71.4414], "Mianwali": [32.5850, 71.5436],
+    "Chakwal": [32.9328, 72.8531], "Jhang": [31.2681, 72.3181],
+    "Sadiqabad": [28.3094, 70.1261], "Khanpur": [28.6471, 70.6564],
+    "Bahawalnagar": [29.9983, 73.2533], "Vehari": [30.0444, 72.3517],
+    "Muzaffargarh": [30.0703, 71.1933], "Kot Addu": [30.4667, 70.9667],
+    "Toba Tek Singh": [30.9711, 72.4828], "Gojra": [31.1492, 72.6832],
+    "Mandi Bahauddin": [32.5861, 73.4917], "Hafizabad": [32.0709, 73.6880],
+    "Pind Dadan Khan": [32.5833, 73.0500], "Lalamusa": [32.9333, 73.9500],
+    "Kharian": [32.8167, 73.8833], "Jalalpur Jattan": [32.6333, 74.2167],
+    "Wazirabad": [32.4431, 74.1167], "Daska": [32.3269, 74.3517],
+    "Pasrur": [32.2667, 74.6667], "Narowal": [32.1000, 74.8667],
+    "Shakargarh": [32.2667, 75.1667], "Zafarwal": [32.3333, 74.9000],
+    "Fazilpur": [30.3833, 70.8833], "Rajanpur": [29.1042, 70.3297],
+    "Alipur": [29.3833, 70.9167], "Jatoi": [29.5000, 70.8667],
+    "Kot Samaba": [28.6500, 70.2333], "Rojhan": [28.6833, 69.9167],
+    "Dajal": [29.5167, 70.4000], "Ahmedpur East": [29.1500, 71.2500],
+    "Hasilpur": [29.6944, 72.5569], "Chishtian": [29.7947, 72.8572],
+    "Harappa": [30.6333, 72.9333], "Sahiwal": [30.6706, 73.1064],
+    "Okara": [30.8100, 73.4517], "Renala Khurd": [30.6667, 73.2333],
+    "Pattoki": [31.0167, 73.8500], "Chunian": [30.9667, 73.9833],
+    "Kanganpur": [30.9167, 74.0833], "Hujra Shah Muqim": [30.7167, 73.9333],
+    "Dipalpur": [30.6667, 73.6500], "Basirpur": [30.7167, 73.8000],
+    "Haveli Lakha": [30.5833, 73.7833], "Burewala": [30.1667, 72.6500],
+    "Mailsi": [30.1500, 72.1667], "Dunyapur": [29.9167, 71.7833],
+    "Qadirpur Ran": [30.0833, 71.6667], "Kabirwala": [30.4042, 71.8728],
+    "Ahmadpur Sial": [30.6000, 72.0167], "Jalalpur Pirwala": [29.8667, 71.2167],
+    "Shujabad": [29.7667, 71.3333], "Jalalpur Jattan": [32.6333, 74.2167]
+  };
+
+  // Plot markers for cities with orders
+  {% for c in city_stats %}
+    {% set city_name = c.shipping_city | title %}
+    {% if city_name in cityCoords %}
+      const marker{{ loop.index }} = L.circleMarker(cityCoords["{{ city_name }}"], {
+        radius: Math.min({{ c.count }} * 4, 25), // Size based on order count
+        fillColor: "#c9a961",
+        color: "#1a1a1a",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.7
+      }).addTo(map);
+      marker{{ loop.index }}.bindPopup("<b>{{ city_name }}</b><br>{{ c.count }} orders");
+    {% endif %}
+  {% endfor %}
+</script>
+{% endblock %}

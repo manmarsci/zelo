@@ -1,0 +1,121 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Courier Slip Scanner</h1>
+<p class="muted">Upload a photo of a courier slip (TCS, Leopards, CallCourier, etc.). The system will extract the tracking number automatically.</p>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
+  
+  <!-- LEFT: Scanner -->
+  <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
+    <h3 style="margin-bottom:1rem;">1. Upload Slip Image</h3>
+    <input type="file" id="slipImage" accept="image/*" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    
+    <div id="ocrStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355;"></div>
+    
+    <div id="extractedData" style="margin-top:1.5rem; display:none;">
+      <h4 style="margin-bottom:.5rem;">Extracted Text Preview:</h4>
+      <textarea id="rawText" rows="4" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:.85rem;"></textarea>
+      
+      <h4 style="margin-top:1rem; margin-bottom:.5rem;">Suggested Tracking Numbers (10-15 digits):</h4>
+      <div id="suggestedTracking" style="display:flex; flex-wrap:wrap; gap:.5rem;"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Save Form -->
+  <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
+    <h3 style="margin-bottom:1rem;">2. Assign to Order</h3>
+    <form method="post" action="{{ url_for('admin_courier_update') }}">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Select Order *</label>
+        <select name="order_id" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Choose an Order --</option>
+          {% for o in orders %}
+            <option value="{{ o.id }}">#{{ o.order_number }} - {{ o.shipping_name }} ({{ o.shipping_city }}) - PKR {{ "%.0f"|format(o.total) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name *</label>
+        <select name="courier_name" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Select Courier --</option>
+          <option>TCS</option>
+          <option>Leopards Courier</option>
+          <option>CallCourier</option>
+          <option>Trax</option>
+          <option>M&P (Pakistan Post)</option>
+          <option>PostEx</option>
+          <option>BlueEx</option>
+          <option>Swyft Logistics</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Number *</label>
+        <input type="text" name="tracking_number" id="trackingInput" required placeholder="e.g. 123456789012" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1.1rem; letter-spacing:1px;" />
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;">Save Tracking Info</button>
+    </form>
+  </div>
+</div>
+
+<!-- Tesseract.js for Client-Side OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+  const fileInput = document.getElementById('slipImage');
+  const statusDiv = document.getElementById('ocrStatus');
+  const extractedDiv = document.getElementById('extractedData');
+  const rawTextArea = document.getElementById('rawText');
+  const suggestedDiv = document.getElementById('suggestedTracking');
+  const trackingInput = document.getElementById('trackingInput');
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    statusDiv.innerHTML = '⏳ Scanning image... Please wait.';
+    extractedDiv.style.display = 'none';
+    suggestedDiv.innerHTML = '';
+
+    try {
+      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            statusDiv.innerHTML = `⏳ Scanning... ${Math.round(m.progress * 100)}%`;
+          }
+        }
+      });
+
+      rawTextArea.value = text;
+      statusDiv.innerHTML = '✅ Scan complete!';
+      extractedDiv.style.display = 'block';
+
+      // Regex to find 10 to 15 digit numbers (standard for Pak couriers)
+      const trackingRegex = /\b\d{10,15}\b/g;
+      const matches = text.match(trackingRegex) || [];
+      const uniqueMatches = [...new Set(matches)];
+
+      if (uniqueMatches.length > 0) {
+        uniqueMatches.forEach(num => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-outline';
+          btn.style.cssText = 'font-size:.85rem; padding:.4rem .8rem;';
+          btn.textContent = num;
+          btn.onclick = () => { trackingInput.value = num; };
+          suggestedDiv.appendChild(btn);
+        });
+        // Auto-fill the first one
+        trackingInput.value = uniqueMatches[0];
+      } else {
+        suggestedDiv.innerHTML = '<span class="muted small">No obvious tracking numbers found. Please type it manually from the text above.</span>';
+      }
+    } catch (err) {
+      statusDiv.innerHTML = '❌ Error scanning image. Please try a clearer photo.';
+      console.error(err);
+    }
+  });
+</script>
+{% endblock %}

@@ -1009,5 +1009,65 @@ def sitemap_xml():
     xml.append('</urlset>')
     return app.response_class('\n'.join(xml), mimetype='application/xml')
 
+# ---------- Admin: Customer Map ----------
+@app.route("/admin/map")
+@admin_required
+def admin_map():
+    # Get order counts by city
+    city_stats = query("""
+        SELECT shipping_city, COUNT(*) as count 
+        FROM orders 
+        WHERE shipping_city IS NOT NULL AND shipping_city != '' 
+        GROUP BY shipping_city 
+        ORDER BY count DESC
+    """)
+    
+    # Get order counts by province
+    province_stats = query("""
+        SELECT shipping_province, COUNT(*) as count 
+        FROM orders 
+        WHERE shipping_province IS NOT NULL AND shipping_province != '' 
+        GROUP BY shipping_province 
+        ORDER BY count DESC
+    """)
+    
+    return render_template("admin/map.html", city_stats=city_stats, province_stats=province_stats)
+
+
+# ---------- Admin: Courier Scanner (GET) ----------
+@app.route("/admin/courier-scanner")
+@admin_required
+def admin_courier_scanner():
+    # Get pending/shipped orders that don't have tracking numbers yet
+    orders = query("""
+        SELECT id, order_number, shipping_name, shipping_city, total 
+        FROM orders 
+        WHERE tracking_number IS NULL OR tracking_number = '' 
+        ORDER BY created_at DESC
+    """)
+    return render_template("admin/courier_scanner.html", orders=orders)
+
+
+# ---------- Admin: Courier Scanner (POST) ----------
+@app.route("/admin/courier-scanner/update", methods=["POST"])
+@admin_required
+def admin_courier_update():
+    order_id = request.form.get("order_id")
+    tracking_number = request.form.get("tracking_number", "").strip()
+    courier_name = request.form.get("courier_name", "").strip()
+    
+    if not order_id or not tracking_number:
+        flash("Order and Tracking Number are required.", "error")
+        return redirect(url_for("admin_courier_scanner"))
+    
+    execute("""
+        UPDATE orders 
+        SET tracking_number = ?, courier_name = ? 
+        WHERE id = ?
+    """, [tracking_number, courier_name, order_id])
+    
+    flash(f"Tracking {tracking_number} added to order successfully!", "success")
+    return redirect(url_for("admin_courier_scanner"))
+
 def handler(request):
     return app(request.environ, lambda *args: None)
