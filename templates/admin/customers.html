@@ -25,7 +25,11 @@
         <td>{{ c.city or '-' }}</td>
         <td>{{ c.created_at }}</td>
         <td>
-          <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem;">Edit</a>
+          <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem; margin-right:5px;">Edit</a>
+          
+          <form method="post" action="{{ url_for('admin_customer_delete', uid=c.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ c.name }}? This cannot be undone.');">
+            <button type="submit" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem; color:#c84b31; border-color:#c84b31;">Delete</button>
+          </form>
         </td>
       </tr>
     {% else %}

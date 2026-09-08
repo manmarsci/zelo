@@ -780,6 +780,19 @@ def admin_customer_edit(uid):
     
     return render_template("admin/customer_edit.html", user=user)
 
+@app.route("/admin/customer/<int:uid>/delete", methods=["POST"])
+@admin_required
+def admin_customer_delete(uid):
+    # Safety check: Prevent admins from deleting themselves
+    if session.get("user_id") == uid:
+        flash("You cannot delete your own account.", "error")
+        return redirect(url_for("admin_customers"))
+        
+    # Delete the customer (restrict to role='customer' to prevent accidental admin deletion)
+    execute("DELETE FROM users WHERE id = ? AND role = 'customer'", [uid])
+    flash("Customer deleted successfully.", "success")
+    return redirect(url_for("admin_customers"))
+
 
 @app.route("/admin/customers")
 @admin_required
