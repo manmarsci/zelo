@@ -1107,13 +1107,16 @@ def admin_courier_update():
         city = slip.get("city", "").strip().upper()
         address = slip.get("address", "").strip()
         courier_name = slip.get("courier_name", "").strip()
-        # Clean tracking number
-        tracking_number = slip.get("tracking_number", "").strip().replace(" ", "").replace("-", "").upper()
+        description = slip.get("description", "").strip()
+        charges = slip.get("charges", "").strip()
+        
+        # KEEP the tracking number exactly as provided (with hashes)
+        tracking_number = slip.get("tracking_number", "").strip()
 
         if not name or not phone or not tracking_number:
             continue
 
-        # 1. Create Customer if they don't exist (One customer per slip)
+        # 1. Create Customer if they don't exist
         existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
         if not existing_user:
             placeholder_email = f"{phone}@zelolive.com"
@@ -1128,9 +1131,9 @@ def admin_courier_update():
         exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
         if not exists:
             execute("""
-                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, [name, phone, city, address, tracking_number, courier_name or 'Other'])
+                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name, description, charges)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges])
             saved_count += 1
             
     return jsonify({"success": True, "saved": saved_count})
@@ -1165,14 +1168,16 @@ def admin_smart_scan():
                             "type": "text",
                             "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
                             
-Extract the following information and return ONLY a valid JSON object (json). Do not include markdown formatting like ```json. Just the raw JSON.
+Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
-    "tracking_number": "The main tracking/AWB number",
-    "courier_name": "Courier company name (e.g., PostEx, TCS, Leopards)",
+    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces (e.g., 08640-01-090058781)",
+    "courier_name": "Courier company name (e.g., PostEx, TCS)",
     "customer_name": "Consignee/Receiver/To name",
     "customer_phone": "Phone number in format 03XXXXXXXXX",
-    "city": "Destination city (e.g., Lahore, Karachi, Faisalabad)",
-    "address": "Complete delivery address"
+    "city": "Destination city",
+    "address": "Clean delivery address. Fix OCR typos, ignore random symbols, barcodes, and noise.",
+    "description": "Item description (e.g., CLOTH)",
+    "charges": "Key financial details (e.g., Payable: 305, Service: 200, COD: 0)"
 }
 
 Rules:
