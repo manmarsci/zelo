@@ -1147,7 +1147,7 @@ def admin_smart_scan():
                             "type": "text",
                             "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
                             
-Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting like ```json. Just the raw JSON.
+Extract the following information and return ONLY a valid JSON object (json). Do not include markdown formatting like ```json. Just the raw JSON.
 {
     "tracking_number": "The main tracking/AWB number",
     "courier_name": "Courier company name (e.g., PostEx, TCS, Leopards)",
@@ -1172,7 +1172,9 @@ Rules:
                 }
             ],
             temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
-            max_tokens=500
+            max_completion_tokens=2000,  # reasoning tokens count against this too — 500 was getting cut off mid-"thinking"
+            reasoning_format="hidden",   # qwen3.6-27b is a thinking model; this strips the chain-of-thought so content is just the answer
+            response_format={"type": "json_object"}  # forces a valid JSON object back
         )
         
         content = response.choices[0].message.content.strip()
