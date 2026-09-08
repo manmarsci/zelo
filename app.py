@@ -1,5 +1,6 @@
 """ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
 import os
+import time
 import json
 import re
 import base64
@@ -9,6 +10,8 @@ import secrets
 from datetime import datetime
 from functools import wraps
 from groq import Groq
+from google import genai
+from google.genai import types as genai_types
 
 import duckdb
 import cloudinary.uploader
@@ -34,6 +37,7 @@ DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
 # Initialize Groq client
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 
@@ -780,7 +784,7 @@ def admin_customer_edit(uid):
         return redirect(url_for("admin_customers"))
     
     # Fetch slips for this customer to display in the template
-    slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user.phone])
+    slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user["phone"]])
     
     return render_template("admin/customer_edit.html", user=user, slips=slips)
 
@@ -1175,9 +1179,7 @@ def admin_courier_update():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-import time
-from groq import RateLimitError
-
+# ---------- Admin: Gemini Vision Smart Scanner ----------
 SMART_SCAN_PROMPT = """You are an expert OCR system extracting data from a photo of a Pakistani courier slip (PostEx, TCS, Leopards, etc.). The photo may be rotated or at an angle — read all text carefully regardless of orientation, including small print and stamped/rotated text near the edges.
 
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
@@ -1200,49 +1202,43 @@ Rules:
 - Return ONLY the JSON, nothing else."""
 
 
-def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
-    """Calls Groq vision API, retrying with backoff if we hit the 429 rate limit."""
+def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
+    """Calls Gemini 3.5 Flash vision API, retrying with backoff on rate limits/transient errors."""
     for attempt in range(max_retries):
         try:
-            resp = groq_client.chat.completions.create(
-                model="qwen/qwen3.8-27b",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": SMART_SCAN_PROMPT},
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
-                            }
-                        ]
-                    }
+            resp = gemini_client.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=[
+                    SMART_SCAN_PROMPT,
+                    genai_types.Part.from_bytes(data=img_bytes, mime_type=mime_type)
                 ],
-                temperature=0.0,
-                max_completion_tokens=2500,  # medium reasoning needs less headroom than high, but still generous
-                response_format={"type": "json_object"},
-                extra_body={"reasoning_effort": "medium"}  # middle ground between fast/sloppy "low" and token-hungry "high"
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.0,
+                    response_mime_type="application/json",  # forces clean JSON output; unlike Groq's Qwen this doesn't leak reasoning into the text
+                    thinking_config=genai_types.ThinkingConfig(thinking_level="low")  # Gemini 3.x can't fully disable thinking, but "low" keeps cost/latency down
+                )
             )
-            # Log actual token usage so we know exactly what "high" costs for this task
-            if hasattr(resp, "usage") and resp.usage:
-                print(f"🔢 Token usage — prompt: {resp.usage.prompt_tokens}, "
-                      f"completion: {resp.usage.completion_tokens}, "
-                      f"total: {resp.usage.total_tokens}")
+            if hasattr(resp, "usage_metadata") and resp.usage_metadata:
+                um = resp.usage_metadata
+                print(f"🔢 Gemini token usage — prompt: {um.prompt_token_count}, "
+                      f"output: {um.candidates_token_count}, "
+                      f"thinking: {getattr(um, 'thoughts_token_count', 0)}, "
+                      f"total: {um.total_token_count}")
             return resp
-        except RateLimitError:
-            if attempt < max_retries - 1:
-                wait = 2 ** attempt  # 1s, 2s, 4s
-                print(f"Rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(wait)
-            else:
-                raise
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    print(f"Rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                    continue
+            raise
 
 
-# ---------- Admin: Groq Vision Smart Scanner ----------
 @app.route("/admin/smart-scan", methods=["POST"])
 @admin_required
 def admin_smart_scan():
-    """Use Groq's Vision model to extract data directly from courier slip images"""
+    """Use Gemini's Vision model to extract data directly from courier slip images"""
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
@@ -1251,14 +1247,12 @@ def admin_smart_scan():
         return jsonify({"error": "No file selected"}), 400
     
     try:
-        # Read and encode image to base64
         img_bytes = file.read()
-        base64_image = base64.b64encode(img_bytes).decode('utf-8')
         mime_type = file.mimetype or 'image/jpeg'
         
-        response = call_groq_vision_with_retry(base64_image, mime_type)
+        response = call_gemini_vision_with_retry(img_bytes, mime_type)
         
-        content = response.choices[0].message.content.strip()
+        content = (response.text or "").strip()
         
         # 🔥 ROBUST JSON EXTRACTION 🔥
         # Find the first '{' and the last '}' to safely extract JSON 
@@ -1283,7 +1277,7 @@ def admin_smart_scan():
         })
         
     except Exception as e:
-        print(f"Groq Vision Error: {e}")
+        print(f"Gemini Vision Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 def handler(request):
