@@ -1,6 +1,8 @@
 """ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
 import os
 import json
+import base64
+import json
 import uuid
 import secrets
 from datetime import datetime
@@ -1114,59 +1116,74 @@ def admin_courier_update():
     flash(f"✅ Successfully saved {saved_count} tracking slips for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
 
-# ---------- Admin: Groq-Powered Smart Parser ----------
-@app.route("/admin/smart-parse", methods=["POST"])
+import base64
+import json
+
+# ---------- Admin: Groq Vision Smart Scanner ----------
+@app.route("/admin/smart-scan", methods=["POST"])
 @admin_required
-def admin_smart_parse():
-    """Use Groq's LLM to parse OCR text into structured data"""
-    if 'text' not in request.form:
-        return jsonify({"error": "No text provided"}), 400
+def admin_smart_scan():
+    """Use Groq's Vision model to extract data directly from courier slip images"""
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
     
-    ocr_text = request.form['text']
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
     
     try:
-        # Use Groq's ultra-fast LLM to extract structured data
+        # Read and encode image to base64
+        img_bytes = file.read()
+        base64_image = base64.b64encode(img_bytes).decode('utf-8')
+        mime_type = file.mimetype or 'image/jpeg'
+        
+        # Use Groq's Vision model
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # or "llama-3.1-8b-instant" for faster/cheaper
+            model="llama-3.2-90b-vision-preview",  # Groq's powerful vision model
             messages=[
                 {
-                    "role": "system",
-                    "content": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, CallCourier, Trax, M&P, etc.).
-                    
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, CallCourier, Trax, M&P, etc.).
+                            
 Extract the following information and return ONLY valid JSON (no markdown, no explanations):
-
 {
-    "tracking_number": "The main tracking/AWB number (remove dashes/spaces)",
-    "courier_name": "Courier company name (PostEx, TCS, Leopards, CallCourier, Trax, M&P, BlueEx, etc.)",
+    "tracking_number": "The main tracking/AWB number",
+    "courier_name": "Courier company name (e.g., PostEx, TCS, Leopards)",
     "customer_name": "Consignee/Receiver/To name",
     "customer_phone": "Phone number in format 03XXXXXXXXX",
-    "city": "Destination city (Lahore, Karachi, Islamabad, etc.)",
+    "city": "Destination city (e.g., Lahore, Karachi, Faisalabad)",
     "address": "Complete delivery address"
 }
 
 Rules:
 - If a field is not found, use empty string ""
-- Clean up OCR errors (fix common mistakes like 0/O, 1/l/I confusion)
 - Pakistani phone numbers start with 03 and are 11 digits
-- Common cities: Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, Sialkot, Gujranwala, Hyderabad, Bahawalpur, etc.
-- Return ONLY the JSON, nothing else"""
-                },
-                {
-                    "role": "user",
-                    "content": f"""Extract data from this courier slip text:
-
-{ocr_text}
-
-Return only valid JSON."""
+- Return ONLY the JSON, nothing else."""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
                 }
             ],
-            temperature=0.1,  # Low temperature for consistent extraction
+            temperature=0.1,
             max_tokens=500
         )
         
-        # Parse the JSON response
-        import json
-        extracted_data = json.loads(response.choices[0].message.content.strip())
+        # Parse the response (handle potential markdown wrappers)
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```json"):
+            content = content[7:-3].strip()
+        elif content.startswith("```"):
+            content = content[3:-3].strip()
+            
+        extracted_data = json.loads(content)
         
         return jsonify({
             "success": True,
@@ -1174,7 +1191,7 @@ Return only valid JSON."""
         })
         
     except Exception as e:
-        print(f"Groq Parsing Error: {e}")
+        print(f"Groq Vision Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 def handler(request):

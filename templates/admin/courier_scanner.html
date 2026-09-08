@@ -1,17 +1,17 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<h1>AI-Powered Courier Slip Scanner (Groq)</h1>
-<p class="muted">Upload slip images. Tesseract OCR + Groq LLM will extract data with 99% accuracy at lightning speed.</p>
+<h1>AI Courier Slip Scanner (Groq Vision)</h1>
+<p class="muted">Upload slip images. Groq's Vision AI will look at the image and extract all data instantly.</p>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
   
   <!-- LEFT: Scanner -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">1. Upload Slip Images</h3>
-    <input type="file" id="slipImages" accept="image/*" multiple style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    <p class="muted small" style="margin-top:.5rem;">Hold Ctrl/Cmd to select multiple files.</p>
+    <h3 style="margin-bottom:1rem;">1. Upload Slip Image</h3>
+    <input type="file" id="slipImage" accept="image/*" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    <p class="muted small" style="margin-top:.5rem;">Select a clear photo of the courier slip.</p>
     
-    <div id="ocrStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
+    <div id="scanStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
     
     <div id="extractedData" style="margin-top:1.5rem; display:none;">
       <h4 style="margin-bottom:.5rem;">AI-Extracted Information:</h4>
@@ -56,22 +56,21 @@
       </div>
 
       <div style="margin-bottom:1.5rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Numbers (One per line) *</label>
-        <textarea name="tracking_numbers" id="trackingInput" rows="4" required placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;"></textarea>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Number *</label>
+        <input type="text" name="tracking_numbers" id="trackingInput" required placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;" />
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width:100%;">Save All Slips</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Save Slip</button>
     </form>
   </div>
 </div>
 
-<!-- Tesseract.js for OCR -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-  const fileInput = document.getElementById('slipImages');
-  const statusDiv = document.getElementById('ocrStatus');
+  const fileInput = document.getElementById('slipImage');
+  const statusDiv = document.getElementById('scanStatus');
   const extractedDiv = document.getElementById('extractedData');
   const extractedInfo = document.getElementById('extractedInfo');
+  
   const customerNameInput = document.getElementById('customerName');
   const customerPhoneInput = document.getElementById('customerPhone');
   const cityInput = document.getElementById('city');
@@ -79,35 +78,17 @@
   const trackingInput = document.getElementById('trackingInput');
 
   fileInput.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-    statusDiv.innerHTML = `🔍 Running OCR on ${files.length} images...`;
+    statusDiv.innerHTML = `🤖 Groq Vision is analyzing the image...`;
     extractedDiv.style.display = 'none';
 
-    let allRawText = '';
-    let allData = [];
-
     try {
-      // Step 1: OCR on all images
-      for (let i = 0; i < files.length; i++) {
-        statusDiv.innerHTML = `🔍 OCR scanning image ${i + 1} of ${files.length}...`;
-        
-        const { data: { text } } = await Tesseract.recognize(files[i], 'eng', {
-          tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-          preserve_interword_spaces: '1',
-        });
-        
-        allRawText += text + '\n\n';
-      }
-
-      // Step 2: Send to Groq for intelligent parsing
-      statusDiv.innerHTML = ` Groq AI parsing extracted text...`;
-      
       const formData = new FormData();
-      formData.append('text', allRawText);
+      formData.append('image', file);
 
-      const response = await fetch('/admin/smart-parse', {
+      const response = await fetch('/admin/smart-scan', {
         method: 'POST',
         body: formData
       });
@@ -118,27 +99,16 @@
         const data = result.data;
         
         // Auto-fill form
-        if (data.customer_name) {
-          customerNameInput.value = data.customer_name.toUpperCase();
-        }
-        if (data.customer_phone) {
-          customerPhoneInput.value = data.customer_phone;
-        }
-        if (data.city) {
-          cityInput.value = data.city.toUpperCase();
-        }
-        if (data.courier_name) {
-          courierSelect.value = data.courier_name;
-        }
-        if (data.tracking_number) {
-          trackingInput.value = data.tracking_number;
-        }
+        if (data.customer_name) customerNameInput.value = data.customer_name.toUpperCase();
+        if (data.customer_phone) customerPhoneInput.value = data.customer_phone;
+        if (data.city) cityInput.value = data.city.toUpperCase();
+        if (data.courier_name) courierSelect.value = data.courier_name;
+        if (data.tracking_number) trackingInput.value = data.tracking_number;
 
         // Show summary
         extractedInfo.innerHTML = `
-          <strong style="color:#c9a961;">✅ Groq AI Extraction Complete!</strong><br/>
+          <strong style="color:#c9a961;">✅ Groq Vision Extraction Complete!</strong><br/>
           <div style="margin-top:.5rem;">
-            <strong>Images Processed:</strong> ${files.length}<br/>
             <strong>Courier:</strong> ${data.courier_name || 'Not detected'}<br/>
             <strong>Tracking:</strong> ${data.tracking_number || 'Not detected'}<br/>
             <strong>Customer:</strong> ${data.customer_name || 'Not detected'}<br/>
@@ -147,16 +117,14 @@
           </div>
         `;
         
-        statusDiv.innerHTML = `✅ Successfully processed with Groq AI!`;
+        statusDiv.innerHTML = `✅ Successfully processed with Groq Vision!`;
         extractedDiv.style.display = 'block';
       } else {
         statusDiv.innerHTML = `❌ AI parsing failed: ${result.error}`;
-        // Still show raw OCR text
-        trackingInput.value = allRawText;
       }
 
     } catch (err) {
-      statusDiv.innerHTML = '❌ Error processing images. Please try again.';
+      statusDiv.innerHTML = '❌ Error processing image. Please try again.';
       console.error(err);
     }
   });
