@@ -1127,7 +1127,7 @@ def admin_smart_parse():
     try:
         # Use Groq's ultra-fast LLM to extract structured data
         response = groq_client.chat.completions.create(
-            model="llama-3.1-70b-versatile",  # or "llama-3.1-8b-instant" for faster/cheaper
+            model="llama-3.3-70b-versatile",  # or "llama-3.1-8b-instant" for faster/cheaper
             messages=[
                 {
                     "role": "system",
