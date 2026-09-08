@@ -1205,7 +1205,7 @@ def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
     for attempt in range(max_retries):
         try:
             return groq_client.chat.completions.create(
-                model="qwen/qwen3.6-27b",
+                model="qwen/qwen3.8-27b",  # newer vision model than 3.6 — supports tunable reasoning_effort (low/medium/high) instead of just none/default
                 messages=[
                     {
                         "role": "user",
@@ -1219,9 +1219,9 @@ def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
                     }
                 ],
                 temperature=0.0,
-                max_completion_tokens=1500,  # "default" reasoning mode needs real headroom for its thinking trace + the JSON
+                max_completion_tokens=1000,
                 response_format={"type": "json_object"},
-                extra_body={"reasoning_effort": "default"}  # qwen3.6-27b only supports "none" or "default" — "low"/"medium"/"high" are Qwen 3.8-only
+                extra_body={"reasoning_effort": "low"}  # enough reasoning to catch small/rotated text without the token blowout "default" caused on 3.6
             )
         except RateLimitError:
             if attempt < max_retries - 1:
