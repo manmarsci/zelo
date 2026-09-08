@@ -1202,23 +1202,24 @@ def admin_smart_scan():
                     "content": [
                         {
                             "type": "text",
-                            "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
-                            
+                            "text": """You are an expert OCR system extracting data from a photo of a Pakistani courier slip (PostEx, TCS, Leopards, etc.). The photo may be rotated or at an angle — read all text carefully regardless of orientation, including small print and stamped/rotated text near the edges.
+
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
-    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
+    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces. Do not add or drop any digits.",
     "courier_name": "Courier company name (e.g., PostEx, TCS)",
-    "customer_name": "Consignee/Receiver/To name",
+    "customer_name": "Consignee/Receiver/To name, copied exactly as printed",
     "customer_phone": "Phone number in format 03XXXXXXXXX",
     "city": "Destination city",
-    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
+    "address": "Delivery address copied exactly as printed. Only fix obvious OCR noise (stray symbols); never invent or guess words you cannot clearly read.",
     "description": "Item description (e.g., CLOTH)",
     "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
-    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
+    "slip_date": "CRITICAL: Near the bottom right corner, just above the bold 'SHIPPER COPY' text, find the label 'Booking Date:' — it may be printed sideways/rotated 90 degrees. Extract the date and time exactly as written (e.g., 2026-09-05 00:00). Look carefully; this field is small and easy to miss."
 }
 
 Rules:
-- If a field is not found, use empty string ""
+- If a field is genuinely not visible anywhere on the slip, use empty string ""
+- Never fabricate or guess a character you cannot actually see — copy exactly what is printed
 - Pakistani phone numbers start with 03 and are 11 digits
 - Return ONLY the JSON, nothing else."""
                         },
@@ -1232,9 +1233,9 @@ Rules:
                 }
             ],
             temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
-            max_completion_tokens=500,  # non-thinking mode needs far fewer tokens — just the JSON, no reasoning
+            max_completion_tokens=800,  # a little more headroom for "low" reasoning mode
             response_format={"type": "json_object"},  # forces a valid JSON object back
-            extra_body={"reasoning_effort": "none"}  # puts Qwen 3.6 27B in non-thinking mode — no chain-of-thought tokens at all, avoids the OTPM rate limit
+            extra_body={"reasoning_effort": "low"}  # "none" was skimming past small/rotated text like the booking date stamp; "low" gives it a light reasoning pass without the xhigh token blowout
         )
         
         content = response.choices[0].message.content.strip()
