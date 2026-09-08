@@ -1,6 +1,7 @@
 """ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
 import os
 import json
+import re
 import base64
 import json
 import uuid
@@ -1116,8 +1117,6 @@ def admin_courier_update():
     flash(f"✅ Successfully saved {saved_count} tracking slips for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
 
-import base64
-import json
 
 # ---------- Admin: Groq Vision Smart Scanner ----------
 @app.route("/admin/smart-scan", methods=["POST"])
@@ -1137,18 +1136,18 @@ def admin_smart_scan():
         base64_image = base64.b64encode(img_bytes).decode('utf-8')
         mime_type = file.mimetype or 'image/jpeg'
         
-        # Use Groq's Vision model
+        # Use your Qwen vision model
         response = groq_client.chat.completions.create(
-            model="qwen/qwen3.6-27b",  # Groq's powerful vision model
+            model="qwen/qwen2.5-vl-72b-instruct",  # Update this if your model name is slightly different
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, CallCourier, Trax, M&P, etc.).
+                            "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
                             
-Extract the following information and return ONLY valid JSON (no markdown, no explanations):
+Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting like ```json. Just the raw JSON.
 {
     "tracking_number": "The main tracking/AWB number",
     "courier_name": "Courier company name (e.g., PostEx, TCS, Leopards)",
@@ -1172,18 +1171,28 @@ Rules:
                     ]
                 }
             ],
-            temperature=0.1,
+            temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
             max_tokens=500
         )
         
-        # Parse the response (handle potential markdown wrappers)
         content = response.choices[0].message.content.strip()
-        if content.startswith("```json"):
-            content = content[7:-3].strip()
-        elif content.startswith("```"):
-            content = content[3:-3].strip()
-            
-        extracted_data = json.loads(content)
+        
+        # 🔥 ROBUST JSON EXTRACTION 🔥
+        # Find the first '{' and the last '}' to safely extract JSON 
+        # even if the model adds conversational text or markdown.
+        start_idx = content.find('{')
+        end_idx = content.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            json_str = content[start_idx:end_idx+1]
+            try:
+                extracted_data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                print(f"JSON Decode Error: {e}\nExtracted string: {json_str}")
+                return jsonify({"error": f"AI returned malformed JSON: {str(e)}"}), 500
+        else:
+            print(f"No JSON brackets found in response: {content}")
+            return jsonify({"error": f"AI did not return JSON. Response: {content[:200]}"}), 500
         
         return jsonify({
             "success": True,
