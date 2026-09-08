@@ -1136,13 +1136,14 @@ def admin_courier_update():
         courier_name = slip.get("courier_name", "").strip()
         description = slip.get("description", "").strip()
         charges = slip.get("charges", "").strip()
-        # KEEP the tracking number exactly as provided (with hashes)
+        slip_date = slip.get("slip_date", "").strip() # NEW
+        
         tracking_number = slip.get("tracking_number", "").strip()
 
         if not name or not phone or not tracking_number:
             continue
 
-        # 1. Create/Update Customer with ALL fields
+        # 1. Create/Update Customer
         existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
         if not existing_user:
             placeholder_email = f"{phone}@zelolive.com"
@@ -1153,7 +1154,6 @@ def admin_courier_update():
                     VALUES (?, ?, ?, ?, 'customer', ?, ?)
                 """, [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), city, address])
         else:
-            # Update existing customer with new address/city if available
             if address or city:
                 execute("""
                     UPDATE users SET city = COALESCE(NULLIF(?, ''), city), 
@@ -1165,9 +1165,9 @@ def admin_courier_update():
         exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
         if not exists:
             execute("""
-                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name, description, charges)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges])
+                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name, description, charges, slip_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges, slip_date])
             saved_count += 1
             
     return jsonify({"success": True, "saved": saved_count})
@@ -1204,14 +1204,15 @@ def admin_smart_scan():
                             
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
-    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces (e.g., 08640-01-090058781)",
+    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
     "courier_name": "Courier company name (e.g., PostEx, TCS)",
     "customer_name": "Consignee/Receiver/To name",
     "customer_phone": "Phone number in format 03XXXXXXXXX",
     "city": "Destination city",
-    "address": "Clean delivery address. Fix OCR typos, ignore random symbols, barcodes, and noise.",
+    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
     "description": "Item description (e.g., CLOTH)",
-    "charges": "Key financial details (e.g., Payable: 305, Service: 200, COD: 0)"
+    "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
+    "slip_date": "The date printed on the slip (Booking/Dispatch date). Format as YYYY-MM-DD if possible, or exactly as written."
 }
 
 Rules:

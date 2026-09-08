@@ -64,23 +64,25 @@
     <table class="admin-table" style="font-size:.9rem;">
       <thead>
         <tr>
+          <th>Slip Date</th>
           <th>Tracking #</th>
           <th>Courier</th>
           <th>City</th>
           <th>Description</th>
           <th>Charges</th>
-          <th>Date</th>
+          <th>System Added</th>
         </tr>
       </thead>
       <tbody>
         {% for slip in slips %}
           <tr>
+            <td style="font-weight:600;">{{ slip.slip_date or '-' }}</td>
             <td style="font-family:monospace; font-weight:600;">{{ slip.tracking_number }}</td>
             <td>{{ slip.courier_name }}</td>
             <td>{{ slip.city }}</td>
             <td>{{ slip.description or '-' }}</td>
             <td>{{ slip.charges or '-' }}</td>
-            <td>{{ slip.created_at }}</td>
+            <td class="muted small">{{ slip.created_at }}</td>
           </tr>
         {% endfor %}
       </tbody>
