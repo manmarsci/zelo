@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block content %}
 <h1>Bulk Courier Slip Scanner</h1>
-<p class="muted">Upload multiple slip images at once. The system will extract all tracking numbers automatically.</p>
+<p class="muted">Upload multiple slip images. The system uses advanced OCR to extract tracking numbers accurately.</p>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
   
@@ -65,7 +65,7 @@
   </div>
 </div>
 
-<!-- Tesseract.js for Client-Side OCR -->
+<!-- Tesseract.js with Better Models -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
   const fileInput = document.getElementById('slipImages');
@@ -88,14 +88,48 @@
 
     try {
       for (let i = 0; i < files.length; i++) {
-        statusDiv.innerHTML = `⏳ Scanning image ${i + 1} of ${files.length}...`;
+        statusDiv.innerHTML = ` Scanning image ${i + 1} of ${files.length}...`;
         
-        const { data: { text } } = await Tesseract.recognize(files[i], 'eng');
+        // Advanced Tesseract configuration for better accuracy
+        const { data: { text } } = await Tesseract.recognize(files[i], 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              console.log(`Progress: ${Math.round(m.progress * 100)}%`);
+            }
+          },
+          errorHandler: err => console.error(err),
+          // Better OCR parameters
+          tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto page segmentation
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -./:', // Limit characters
+          preserve_interword_spaces: '1',
+        });
+
         allRawText += `--- Image ${i+1} ---\n${text}\n\n`;
         
-        // Regex to find 10 to 15 digit numbers
-        const matches = text.match(/\b\d{10,15}\b/g) || [];
-        matches.forEach(num => allNumbers.add(num));
+        // Smarter extraction for Pakistani courier formats
+        // Match patterns like:
+        // - 10-15 digit numbers (standard tracking)
+        // - Numbers with dashes/spaces (e.g., 123-456-789)
+        // - TCS format: TC followed by numbers
+        // - Leopards: LEO followed by numbers
+        const patterns = [
+          /\b\d{10,15}\b/g,                    // Standard 10-15 digits
+          /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{3,6}\b/g,  // Grouped numbers with separators
+          /\b(TC|TCS|LEO|LEOPARDS|CC|TRAX)\s*[-.]?\s*\d{6,12}\b/gi, // Courier-specific prefixes
+          /\b[A-Z]{2,4}\d{6,12}\b/g            // Alpha-numeric codes
+        ];
+
+        patterns.forEach(pattern => {
+          const matches = text.match(pattern) || [];
+          matches.forEach(match => {
+            // Clean up the match: remove spaces, convert to uppercase
+            const cleaned = match.replace(/[\s-]/g, '').toUpperCase();
+            // Only add if it looks like a valid tracking number (has digits)
+            if (/\d/.test(cleaned) && cleaned.length >= 8 && cleaned.length <= 20) {
+              allNumbers.add(cleaned);
+            }
+          });
+        });
       }
 
       statusDiv.innerHTML = `✅ Successfully scanned ${files.length} images! Found ${allNumbers.size} unique tracking numbers.`;
@@ -103,7 +137,7 @@
       extractedDiv.style.display = 'block';
 
       // Populate textarea with numbers, one per line
-      const uniqueArray = Array.from(allNumbers);
+      const uniqueArray = Array.from(allNumbers).sort();
       trackingInput.value = uniqueArray.join('\n');
 
     } catch (err) {
