@@ -761,6 +761,7 @@ def admin_customer_edit(uid):
     user = query_one("SELECT * FROM users WHERE id = ?", [uid])
     if not user:
         abort(404)
+        
     if request.method == "POST":
         name = request.form["name"].strip()
         email = request.form["email"].strip().lower()
@@ -778,7 +779,10 @@ def admin_customer_edit(uid):
         flash("Customer updated successfully.", "success")
         return redirect(url_for("admin_customers"))
     
-    return render_template("admin/customer_edit.html", user=user)
+    # Fetch slips for this customer to display in the template
+    slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user.phone])
+    
+    return render_template("admin/customer_edit.html", user=user, slips=slips)
 
 @app.route("/admin/customer/<int:uid>/delete", methods=["POST"])
 @admin_required

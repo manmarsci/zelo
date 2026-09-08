@@ -60,7 +60,6 @@
 <!-- Customer's Courier Slips History -->
 <div style="margin-top:2rem; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
   <h3 style="margin-top:0; margin-bottom:1rem;">Courier Slips History</h3>
-  {% set slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user.phone]) %}
   {% if slips %}
     <table class="admin-table" style="font-size:.9rem;">
       <thead>
