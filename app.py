@@ -1175,34 +1175,10 @@ def admin_courier_update():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ---------- Admin: Groq Vision Smart Scanner ----------
-@app.route("/admin/smart-scan", methods=["POST"])
-@admin_required
-def admin_smart_scan():
-    """Use Groq's Vision model to extract data directly from courier slip images"""
-    if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-    
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
-    
-    try:
-        # Read and encode image to base64
-        img_bytes = file.read()
-        base64_image = base64.b64encode(img_bytes).decode('utf-8')
-        mime_type = file.mimetype or 'image/jpeg'
-        
-        # Use your Qwen vision model
-        response = groq_client.chat.completions.create(
-            model="qwen/qwen3.6-27b",  # Update this if your model name is slightly different
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": """You are an expert OCR system extracting data from a photo of a Pakistani courier slip (PostEx, TCS, Leopards, etc.). The photo may be rotated or at an angle — read all text carefully regardless of orientation, including small print and stamped/rotated text near the edges.
+import time
+from groq import RateLimitError
+
+SMART_SCAN_PROMPT = """You are an expert OCR system extracting data from a photo of a Pakistani courier slip (PostEx, TCS, Leopards, etc.). The photo may be rotated or at an angle — read all text carefully regardless of orientation, including small print and stamped/rotated text near the edges.
 
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
@@ -1222,21 +1198,59 @@ Rules:
 - Never fabricate or guess a character you cannot actually see — copy exactly what is printed
 - Pakistani phone numbers start with 03 and are 11 digits
 - Return ONLY the JSON, nothing else."""
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{mime_type};base64,{base64_image}"
+
+
+def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
+    """Calls Groq vision API, retrying with backoff if we hit the 429 rate limit."""
+    for attempt in range(max_retries):
+        try:
+            return groq_client.chat.completions.create(
+                model="qwen/qwen3.6-27b",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": SMART_SCAN_PROMPT},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
                             }
-                        }
-                    ]
-                }
-            ],
-            temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
-            max_completion_tokens=800,  # a little more headroom for "low" reasoning mode
-            response_format={"type": "json_object"},  # forces a valid JSON object back
-            extra_body={"reasoning_effort": "low"}  # "none" was skimming past small/rotated text like the booking date stamp; "low" gives it a light reasoning pass without the xhigh token blowout
-        )
+                        ]
+                    }
+                ],
+                temperature=0.0,
+                max_completion_tokens=1500,  # "default" reasoning mode needs real headroom for its thinking trace + the JSON
+                response_format={"type": "json_object"},
+                extra_body={"reasoning_effort": "default"}  # qwen3.6-27b only supports "none" or "default" — "low"/"medium"/"high" are Qwen 3.8-only
+            )
+        except RateLimitError:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                print(f"Rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait)
+            else:
+                raise
+
+
+# ---------- Admin: Groq Vision Smart Scanner ----------
+@app.route("/admin/smart-scan", methods=["POST"])
+@admin_required
+def admin_smart_scan():
+    """Use Groq's Vision model to extract data directly from courier slip images"""
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    try:
+        # Read and encode image to base64
+        img_bytes = file.read()
+        base64_image = base64.b64encode(img_bytes).decode('utf-8')
+        mime_type = file.mimetype or 'image/jpeg'
+        
+        response = call_groq_vision_with_retry(base64_image, mime_type)
         
         content = response.choices[0].message.content.strip()
         
