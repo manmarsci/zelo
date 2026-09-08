@@ -765,9 +765,19 @@ def admin_customer_edit(uid):
         name = request.form["name"].strip()
         email = request.form["email"].strip().lower()
         phone = request.form["phone"].strip()
-        execute("UPDATE users SET name=?, email=?, phone=? WHERE id=?", [name, email, phone, uid])
+        address = request.form.get("address", "").strip()
+        city = request.form.get("city", "").strip()
+        province = request.form.get("province", "").strip()
+        postal_code = request.form.get("postal_code", "").strip()
+        
+        execute("""
+            UPDATE users SET name=?, email=?, phone=?, address=?, city=?, province=?, postal_code=? 
+            WHERE id=?
+        """, [name, email, phone, address, city, province, postal_code, uid])
+        
         flash("Customer updated successfully.", "success")
         return redirect(url_for("admin_customers"))
+    
     return render_template("admin/customer_edit.html", user=user)
 
 
@@ -1109,23 +1119,30 @@ def admin_courier_update():
         courier_name = slip.get("courier_name", "").strip()
         description = slip.get("description", "").strip()
         charges = slip.get("charges", "").strip()
-        
         # KEEP the tracking number exactly as provided (with hashes)
         tracking_number = slip.get("tracking_number", "").strip()
 
         if not name or not phone or not tracking_number:
             continue
 
-        # 1. Create Customer if they don't exist
+        # 1. Create/Update Customer with ALL fields
         existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
         if not existing_user:
             placeholder_email = f"{phone}@zelolive.com"
             existing_email = query_one("SELECT id FROM users WHERE email = ?", [placeholder_email])
             if not existing_email:
-                execute(
-                    "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
-                    [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
-                )
+                execute("""
+                    INSERT INTO users (name, email, phone, password_hash, role, city, address) 
+                    VALUES (?, ?, ?, ?, 'customer', ?, ?)
+                """, [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), city, address])
+        else:
+            # Update existing customer with new address/city if available
+            if address or city:
+                execute("""
+                    UPDATE users SET city = COALESCE(NULLIF(?, ''), city), 
+                                     address = COALESCE(NULLIF(?, ''), address) 
+                    WHERE id = ?
+                """, [city, address, existing_user['id']])
 
         # 2. Save the Slip (Deduplicated)
         exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])

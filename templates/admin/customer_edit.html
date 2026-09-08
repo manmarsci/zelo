@@ -2,27 +2,92 @@
 {% block content %}
 <h1>Edit Customer: {{ user.name }}</h1>
 
-<div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; max-width:600px;">
+<div style="background:#fff; padding:2rem; border-radius:8px; border:1px solid #e8e1d1; max-width:800px;">
   <form method="post">
-    <div style="margin-bottom:1rem;">
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Name</label>
-      <input type="text" name="name" value="{{ user.name }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Name *</label>
+        <input type="text" name="name" value="{{ user.name }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Email *</label>
+        <input type="email" name="email" value="{{ user.email }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Phone *</label>
+        <input type="tel" name="phone" value="{{ user.phone }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
+        <input type="text" name="city" value="{{ user.city or '' }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Province</label>
+        <select name="province" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Select Province --</option>
+          <option value="Punjab" {{ 'selected' if user.province == 'Punjab' }}>Punjab</option>
+          <option value="Sindh" {{ 'selected' if user.province == 'Sindh' }}>Sindh</option>
+          <option value="KPK" {{ 'selected' if user.province == 'KPK' }}>KPK</option>
+          <option value="Balochistan" {{ 'selected' if user.province == 'Balochistan' }}>Balochistan</option>
+          <option value="Islamabad" {{ 'selected' if user.province == 'Islamabad' }}>Islamabad</option>
+          <option value="Gilgit-Baltistan" {{ 'selected' if user.province == 'Gilgit-Baltistan' }}>Gilgit-Baltistan</option>
+          <option value="AJK" {{ 'selected' if user.province == 'AJK' }}>AJK</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Postal Code</label>
+        <input type="text" name="postal_code" value="{{ user.postal_code or '' }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div style="grid-column: 1 / -1;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Address</label>
+        <textarea name="address" rows="3" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:inherit;">{{ user.address or '' }}</textarea>
+      </div>
     </div>
 
-    <div style="margin-bottom:1rem;">
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Email</label>
-      <input type="email" name="email" value="{{ user.email }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    </div>
-
-    <div style="margin-bottom:1.5rem;">
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Phone</label>
-      <input type="tel" name="phone" value="{{ user.phone }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    </div>
-
-    <div style="display:flex; gap:1rem;">
+    <div style="display:flex; gap:1rem; margin-top:2rem;">
       <button type="submit" class="btn btn-primary">Save Changes</button>
       <a href="{{ url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
     </div>
   </form>
+</div>
+
+<!-- Customer's Courier Slips History -->
+<div style="margin-top:2rem; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
+  <h3 style="margin-top:0; margin-bottom:1rem;">Courier Slips History</h3>
+  {% set slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user.phone]) %}
+  {% if slips %}
+    <table class="admin-table" style="font-size:.9rem;">
+      <thead>
+        <tr>
+          <th>Tracking #</th>
+          <th>Courier</th>
+          <th>City</th>
+          <th>Description</th>
+          <th>Charges</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slip in slips %}
+          <tr>
+            <td style="font-family:monospace; font-weight:600;">{{ slip.tracking_number }}</td>
+            <td>{{ slip.courier_name }}</td>
+            <td>{{ slip.city }}</td>
+            <td>{{ slip.description or '-' }}</td>
+            <td>{{ slip.charges or '-' }}</td>
+            <td>{{ slip.created_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No courier slips found for this customer.</p>
+  {% endif %}
 </div>
 {% endblock %}

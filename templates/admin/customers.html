@@ -11,6 +11,7 @@
       <th>Name</th>
       <th>Email</th>
       <th>Phone</th>
+      <th>City</th>
       <th>Joined</th>
       <th>Actions</th>
     </tr>
@@ -21,6 +22,7 @@
         <td>{{ c.name }}</td>
         <td>{{ c.email }}</td>
         <td>{{ c.phone or '-' }}</td>
+        <td>{{ c.city or '-' }}</td>
         <td>{{ c.created_at }}</td>
         <td>
           <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem;">Edit</a>
@@ -28,7 +30,7 @@
       </tr>
     {% else %}
       <tr>
-        <td colspan="5" style="text-align:center; padding:2rem; color:#8b7355;">No customers found.</td>
+        <td colspan="6" style="text-align:center; padding:2rem; color:#8b7355;">No customers found.</td>
       </tr>
     {% endfor %}
   </tbody>
