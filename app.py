@@ -1215,7 +1215,7 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
                 config=genai_types.GenerateContentConfig(
                     temperature=0.0,
                     response_mime_type="application/json",  # forces clean JSON output; unlike Groq's Qwen this doesn't leak reasoning into the text
-                    thinking_config=genai_types.ThinkingConfig(thinking_level="low")  # Gemini 3.x can't fully disable thinking, but "low" keeps cost/latency down
+                    thinking_config=genai_types.ThinkingConfig(thinking_level=genai_types.ThinkingLevel.LOW)  # Gemini 3.x can't fully disable thinking, but LOW keeps cost/latency down
                 )
             )
             if hasattr(resp, "usage_metadata") and resp.usage_metadata:
