@@ -1139,7 +1139,7 @@ def admin_smart_scan():
         
         # Use Groq's Vision model
         response = groq_client.chat.completions.create(
-            model="openai/gpt-oss-120b",  # Groq's powerful vision model
+            model="qwen/qwen3.6-27b",  # Groq's powerful vision model
             messages=[
                 {
                     "role": "user",
