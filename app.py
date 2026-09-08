@@ -755,6 +755,21 @@ def admin_order_status(oid):
     flash("Order status updated.", "success")
     return redirect(request.referrer or url_for("admin_orders"))
 
+@app.route("/admin/customer/<int:uid>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_customer_edit(uid):
+    user = query_one("SELECT * FROM users WHERE id = ?", [uid])
+    if not user:
+        abort(404)
+    if request.method == "POST":
+        name = request.form["name"].strip()
+        email = request.form["email"].strip().lower()
+        phone = request.form["phone"].strip()
+        execute("UPDATE users SET name=?, email=?, phone=? WHERE id=?", [name, email, phone, uid])
+        flash("Customer updated successfully.", "success")
+        return redirect(url_for("admin_customers"))
+    return render_template("admin/customer_edit.html", user=user)
+
 
 @app.route("/admin/customers")
 @admin_required
@@ -1074,48 +1089,51 @@ def admin_courier_scanner():
     return render_template("admin/courier_scanner.html")
 
 
-# ---------- Admin: Courier Scanner (POST) ----------
 @app.route("/admin/courier-scanner/update", methods=["POST"])
 @admin_required
 def admin_courier_update():
-    name = request.form.get("customer_name", "").strip().upper()
-    phone = request.form.get("customer_phone", "").strip()
-    city = request.form.get("city", "").strip().upper()
-    tracking_text = request.form.get("tracking_numbers", "").strip()
-    courier_name = request.form.get("courier_name", "").strip()
-    
-    if not name or not phone or not tracking_text:
-        flash("Name, Phone, and Tracking Numbers are required.", "error")
+    # Accept JSON payload from the new bulk scanner
+    if not request.is_json:
+        flash("Invalid data format.", "error")
         return redirect(url_for("admin_courier_scanner"))
-    
-    # 1. Create Customer if they don't exist
-    existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
-    if not existing_user:
-        placeholder_email = f"{phone}@zelolive.com"
-        execute(
-            "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
-            [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
-        )
-        flash(f"✅ New customer '{name}' created successfully.", "success")
-    else:
-        flash(f"ℹ️ Customer '{name}' already exists. Slips saved.", "info")
-
-    # 2. Process Multiple Tracking Numbers
-    tracking_numbers = [t.strip() for t in tracking_text.split('\n') if t.strip()]
+        
+    data = request.get_json()
+    slips = data.get('slips', [])
     saved_count = 0
     
-    for t_num in tracking_numbers:
-        # Prevent duplicate tracking numbers
-        exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [t_num])
+    for slip in slips:
+        name = slip.get("customer_name", "").strip().upper()
+        phone = slip.get("customer_phone", "").strip()
+        city = slip.get("city", "").strip().upper()
+        address = slip.get("address", "").strip()
+        courier_name = slip.get("courier_name", "").strip()
+        # Clean tracking number
+        tracking_number = slip.get("tracking_number", "").strip().replace(" ", "").replace("-", "").upper()
+
+        if not name or not phone or not tracking_number:
+            continue
+
+        # 1. Create Customer if they don't exist (One customer per slip)
+        existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
+        if not existing_user:
+            placeholder_email = f"{phone}@zelolive.com"
+            existing_email = query_one("SELECT id FROM users WHERE email = ?", [placeholder_email])
+            if not existing_email:
+                execute(
+                    "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
+                    [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
+                )
+
+        # 2. Save the Slip (Deduplicated)
+        exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
         if not exists:
             execute("""
-                INSERT INTO courier_slips (customer_name, customer_phone, city, tracking_number, courier_name)
-                VALUES (?, ?, ?, ?, ?)
-            """, [name, phone, city, t_num, courier_name or 'Other'])
+                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, [name, phone, city, address, tracking_number, courier_name or 'Other'])
             saved_count += 1
             
-    flash(f"✅ Successfully saved {saved_count} tracking slips for {name}!", "success")
-    return redirect(url_for("admin_courier_scanner"))
+    return jsonify({"success": True, "saved": saved_count})
 
 
 # ---------- Admin: Groq Vision Smart Scanner ----------

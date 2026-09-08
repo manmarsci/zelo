@@ -1,161 +1,171 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<h1>AI Courier Slip Scanner (Bulk & Deduplicated)</h1>
-<p class="muted">Upload multiple slip images at once. Groq Vision will extract all valuable data, and the system will automatically deduplicate tracking numbers.</p>
+<h1>AI Courier Slip Scanner (Bulk & Individual)</h1>
+<p class="muted">Upload multiple slips. Each slip will create its own customer card with all extracted data.</p>
 
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
+<div style="display:grid; grid-template-columns: 1fr; gap:2rem; margin-top:2rem;">
   
-  <!-- LEFT: Scanner -->
+  <!-- Upload Section -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
     <h3 style="margin-bottom:1rem;">1. Upload Slip Images</h3>
     <input type="file" id="slipImages" accept="image/*" multiple style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    <p class="muted small" style="margin-top:.5rem;">Hold Ctrl/Cmd to select multiple files (e.g., 5-10 slips at once).</p>
-    
+    <p class="muted small" style="margin-top:.5rem;">Hold Ctrl/Cmd to select multiple files.</p>
     <div id="scanStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
-    
-    <div id="extractedData" style="margin-top:1.5rem; display:none;">
-      <h4 style="margin-bottom:.5rem;">AI-Extracted Information:</h4>
-      <div id="extractedInfo" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:.9rem; line-height:1.6;"></div>
-    </div>
   </div>
 
-  <!-- RIGHT: Customer & Save Form -->
-  <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">2. Verify & Save Bulk Slips</h3>
-    <form method="post" action="{{ url_for('admin_courier_update') }}">
-      
-      <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name *</label>
-        <input type="text" name="customer_name" id="customerName" required placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-      </div>
+  <!-- Extracted Slips Container -->
+  <div id="slipsContainer" style="display:flex; flex-direction:column; gap:1rem;"></div>
 
-      <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone *</label>
-        <input type="tel" name="customer_phone" id="customerPhone" required placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-      </div>
-
-      <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
-        <input type="text" name="city" id="city" placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-      </div>
-
-      <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name</label>
-        <select name="courier_name" id="courierName" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
-          <option value="">-- Auto-detected by AI --</option>
-          <option value="PostEx">PostEx</option>
-          <option value="TCS">TCS</option>
-          <option value="Leopards Courier">Leopards Courier</option>
-          <option value="CallCourier">CallCourier</option>
-          <option value="Trax">Trax</option>
-          <option value="M&P (Pakistan Post)">M&P (Pakistan Post)</option>
-          <option value="BlueEx">BlueEx</option>
-          <option value="Swyft Logistics">Swyft Logistics</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-
-      <div style="margin-bottom:1.5rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Numbers (One per line, auto-deduplicated) *</label>
-        <textarea name="tracking_numbers" id="trackingInput" rows="6" required placeholder="Auto-filled and deduplicated by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;"></textarea>
-      </div>
-
-      <button type="submit" class="btn btn-primary" style="width:100%;">Save All Unique Slips</button>
-    </form>
+  <!-- Save Button -->
+  <div id="saveSection" style="display:none; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; position:sticky; bottom:20px; box-shadow:0 -4px 12px rgba(0,0,0,0.1);">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Ready to Save <span id="slipCount">0</span> Slips</h3>
+      <button type="button" id="saveAllBtn" class="btn btn-primary" style="padding:1rem 2rem; font-size:1.1rem;">💾 Save All Customers & Slips</button>
+    </div>
   </div>
 </div>
 
 <script>
   const fileInput = document.getElementById('slipImages');
   const statusDiv = document.getElementById('scanStatus');
-  const extractedDiv = document.getElementById('extractedData');
-  const extractedInfo = document.getElementById('extractedInfo');
-  
-  const customerNameInput = document.getElementById('customerName');
-  const customerPhoneInput = document.getElementById('customerPhone');
-  const cityInput = document.getElementById('city');
-  const courierSelect = document.getElementById('courierName');
-  const trackingInput = document.getElementById('trackingInput');
+  const slipsContainer = document.getElementById('slipsContainer');
+  const saveSection = document.getElementById('saveSection');
+  const slipCountSpan = document.getElementById('slipCount');
+  const saveAllBtn = document.getElementById('saveAllBtn');
+
+  let slipCounter = 0;
 
   fileInput.addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
     statusDiv.innerHTML = `🤖 Groq Vision is analyzing ${files.length} image(s)...`;
-    extractedDiv.style.display = 'none';
+    
+    for (let i = 0; i < files.length; i++) {
+      statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
+      
+      const formData = new FormData();
+      formData.append('image', files[i]);
 
-    let allResults = [];
-    let allTrackingNumbers = new Set();
-
-    try {
-      // Loop through each file and send to your working /admin/smart-scan route
-      for (let i = 0; i < files.length; i++) {
-        statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
-        
-        const formData = new FormData();
-        formData.append('image', files[i]);
-
-        const response = await fetch('/admin/smart-scan', {
-          method: 'POST',
-          body: formData
-        });
-
+      try {
+        const response = await fetch('/admin/smart-scan', { method: 'POST', body: formData });
         const result = await response.json();
+        
         if (result.success) {
-          allResults.push(result.data);
-          if (result.data.tracking_number) {
-            // Clean and add to Set for automatic deduplication
-            const cleanTracking = result.data.tracking_number.replace(/[\s-]/g, '').toUpperCase();
-            allTrackingNumbers.add(cleanTracking);
-          }
+          createSlipCard(result.data, i + 1);
         } else {
           console.warn(`Failed to scan image ${i + 1}:`, result.error);
         }
+      } catch (err) {
+        console.error(`Error on image ${i + 1}:`, err);
       }
+    }
 
-      if (allResults.length > 0) {
-        // Aggregate data: take the first non-empty value found across all successful scans
-        const aggregate = {
-          customer_name: allResults.find(r => r.customer_name)?.customer_name || '',
-          customer_phone: allResults.find(r => r.customer_phone)?.customer_phone || '',
-          city: allResults.find(r => r.city)?.city || '',
-          courier_name: allResults.find(r => r.courier_name)?.courier_name || '',
-          address: allResults.find(r => r.address)?.address || ''
-        };
+    statusDiv.innerHTML = `✅ Finished scanning ${files.length} images!`;
+    fileInput.value = ''; // Reset input
+  });
 
-        // Auto-fill form
-        if (aggregate.customer_name) customerNameInput.value = aggregate.customer_name.toUpperCase();
-        if (aggregate.customer_phone) customerPhoneInput.value = aggregate.customer_phone;
-        if (aggregate.city) cityInput.value = aggregate.city.toUpperCase();
-        if (aggregate.courier_name) courierSelect.value = aggregate.courier_name;
-        
-        // Fill deduplicated tracking numbers (one per line)
-        const uniqueTrackingArray = Array.from(allTrackingNumbers).sort();
-        trackingInput.value = uniqueTrackingArray.join('\n');
+  function createSlipCard(data, index) {
+    slipCounter++;
+    const id = slipCounter;
+    slipCountSpan.textContent = document.querySelectorAll('.slip-card').length + 1;
+    saveSection.style.display = 'block';
 
-        // Show detailed summary
-        extractedInfo.innerHTML = `
-          <strong style="color:#c9a961;">✅ Groq Vision Extraction Complete!</strong><br/>
-          <div style="margin-top:.5rem;">
-            <strong>Images Processed:</strong> ${files.length} (Successful: ${allResults.length})<br/>
-            <strong>Unique Tracking Numbers:</strong> ${uniqueTrackingArray.length} (Duplicates removed)<br/>
-            <strong>Courier:</strong> ${aggregate.courier_name || 'Not detected'}<br/>
-            <strong>Customer:</strong> ${aggregate.customer_name || 'Not detected'}<br/>
-            <strong>Phone:</strong> ${aggregate.customer_phone || 'Not detected'}<br/>
-            <strong>City:</strong> ${aggregate.city || 'Not detected'}<br/>
-            ${aggregate.address ? `<strong>Address:</strong> ${aggregate.address}<br/>` : ''}
-          </div>
-        `;
-        
-        statusDiv.innerHTML = `✅ Successfully processed ${files.length} images!`;
-        extractedDiv.style.display = 'block';
+    const card = document.createElement('div');
+    card.className = 'slip-card';
+    card.style.cssText = 'background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; position:relative;';
+    card.innerHTML = `
+      <button type="button" onclick="this.parentElement.remove(); updateCount();" style="position:absolute; top:10px; right:10px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#c84b31;">&times;</button>
+      <h4 style="margin-top:0; color:#8b7355;">Slip #${index} - ${data.courier_name || 'Unknown Courier'}</h4>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+        <div>
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name *</label>
+          <input type="text" class="inp-name" value="${(data.customer_name || '').toUpperCase()}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        </div>
+        <div>
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone *</label>
+          <input type="tel" class="inp-phone" value="${data.customer_phone || ''}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        </div>
+        <div>
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
+          <input type="text" class="inp-city" value="${(data.city || '').toUpperCase()}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        </div>
+        <div>
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name</label>
+          <select class="inp-courier" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+            <option value="">-- Select --</option>
+            <option value="PostEx" ${data.courier_name === 'PostEx' ? 'selected' : ''}>PostEx</option>
+            <option value="TCS" ${data.courier_name === 'TCS' ? 'selected' : ''}>TCS</option>
+            <option value="Leopards Courier" ${data.courier_name === 'Leopards Courier' ? 'selected' : ''}>Leopards</option>
+            <option value="CallCourier" ${data.courier_name === 'CallCourier' ? 'selected' : ''}>CallCourier</option>
+            <option value="Trax" ${data.courier_name === 'Trax' ? 'selected' : ''}>Trax</option>
+            <option value="M&P (Pakistan Post)" ${data.courier_name === 'M&P (Pakistan Post)' ? 'selected' : ''}>M&P</option>
+            <option value="BlueEx" ${data.courier_name === 'BlueEx' ? 'selected' : ''}>BlueEx</option>
+            <option value="Swyft Logistics" ${data.courier_name === 'Swyft Logistics' ? 'selected' : ''}>Swyft</option>
+            <option value="Other" ${data.courier_name === 'Other' ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Address</label>
+          <input type="text" class="inp-address" value="${data.address || ''}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Number *</label>
+          <input type="text" class="inp-tracking" value="${(data.tracking_number || '').replace(/[\s-]/g, '').toUpperCase()}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1.1rem; letter-spacing:1px;" />
+        </div>
+      </div>
+    `;
+    slipsContainer.appendChild(card);
+  }
+
+  function updateCount() {
+    const count = document.querySelectorAll('.slip-card').length;
+    slipCountSpan.textContent = count;
+    if (count === 0) saveSection.style.display = 'none';
+  }
+
+  saveAllBtn.addEventListener('click', async () => {
+    const cards = document.querySelectorAll('.slip-card');
+    const slips = [];
+
+    cards.forEach(card => {
+      slips.push({
+        customer_name: card.querySelector('.inp-name').value,
+        customer_phone: card.querySelector('.inp-phone').value,
+        city: card.querySelector('.inp-city').value,
+        address: card.querySelector('.inp-address').value,
+        courier_name: card.querySelector('.inp-courier').value,
+        tracking_number: card.querySelector('.inp-tracking').value
+      });
+    });
+
+    if (slips.length === 0) return;
+
+    saveAllBtn.disabled = true;
+    saveAllBtn.textContent = 'Saving...';
+
+    try {
+      const response = await fetch('/admin/courier-scanner/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slips })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ Successfully saved ${result.saved} unique slips and created customers!`);
+        slipsContainer.innerHTML = '';
+        updateCount();
+        window.location.reload(); // Reload to show flash messages
       } else {
-        statusDiv.innerHTML = `❌ AI parsing failed for all images. Please check image quality.`;
+        alert('❌ Error saving slips.');
       }
-
     } catch (err) {
-      statusDiv.innerHTML = '❌ Error processing images. Please try again.';
-      console.error(err);
+      alert('❌ Network error.');
+    } finally {
+      saveAllBtn.disabled = false;
+      saveAllBtn.textContent = '💾 Save All Customers & Slips';
     }
   });
 </script>

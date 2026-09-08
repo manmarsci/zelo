@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Edit Customer: {{ user.name }}</h1>
+
+<div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; max-width:600px;">
+  <form method="post">
+    <div style="margin-bottom:1rem;">
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Name</label>
+      <input type="text" name="name" value="{{ user.name }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Email</label>
+      <input type="email" name="email" value="{{ user.email }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    </div>
+
+    <div style="margin-bottom:1.5rem;">
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Phone</label>
+      <input type="tel" name="phone" value="{{ user.phone }}" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    </div>
+
+    <div style="display:flex; gap:1rem;">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

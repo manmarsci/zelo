@@ -3,6 +3,7 @@
 <div class="admin-head">
   <h1>Customers</h1>
   <a href="{{ url_for('admin_customer_add') }}" class="btn btn-primary">+ Add Customer</a>
+  <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem;">Edit</a>
 </div>
 <table class="admin-table">
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead>
