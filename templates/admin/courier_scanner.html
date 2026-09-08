@@ -1,27 +1,27 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<h1>AI Courier Slip Scanner (Groq Vision)</h1>
-<p class="muted">Upload slip images. Groq's Vision AI will look at the image and extract all data instantly.</p>
+<h1>AI Courier Slip Scanner (Bulk & Deduplicated)</h1>
+<p class="muted">Upload multiple slip images at once. Groq Vision will extract all valuable data, and the system will automatically deduplicate tracking numbers.</p>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
   
   <!-- LEFT: Scanner -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">1. Upload Slip Image</h3>
-    <input type="file" id="slipImage" accept="image/*" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    <p class="muted small" style="margin-top:.5rem;">Select a clear photo of the courier slip.</p>
+    <h3 style="margin-bottom:1rem;">1. Upload Slip Images</h3>
+    <input type="file" id="slipImages" accept="image/*" multiple style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    <p class="muted small" style="margin-top:.5rem;">Hold Ctrl/Cmd to select multiple files (e.g., 5-10 slips at once).</p>
     
     <div id="scanStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
     
     <div id="extractedData" style="margin-top:1.5rem; display:none;">
       <h4 style="margin-bottom:.5rem;">AI-Extracted Information:</h4>
-      <div id="extractedInfo" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:.9rem;"></div>
+      <div id="extractedInfo" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:.9rem; line-height:1.6;"></div>
     </div>
   </div>
 
   <!-- RIGHT: Customer & Save Form -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">2. Verify & Save</h3>
+    <h3 style="margin-bottom:1rem;">2. Verify & Save Bulk Slips</h3>
     <form method="post" action="{{ url_for('admin_courier_update') }}">
       
       <div style="margin-bottom:1rem;">
@@ -56,17 +56,17 @@
       </div>
 
       <div style="margin-bottom:1.5rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Number *</label>
-        <input type="text" name="tracking_numbers" id="trackingInput" required placeholder="Auto-filled by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;" />
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Numbers (One per line, auto-deduplicated) *</label>
+        <textarea name="tracking_numbers" id="trackingInput" rows="6" required placeholder="Auto-filled and deduplicated by AI" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;"></textarea>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width:100%;">Save Slip</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Save All Unique Slips</button>
     </form>
   </div>
 </div>
 
 <script>
-  const fileInput = document.getElementById('slipImage');
+  const fileInput = document.getElementById('slipImages');
   const statusDiv = document.getElementById('scanStatus');
   const extractedDiv = document.getElementById('extractedData');
   const extractedInfo = document.getElementById('extractedInfo');
@@ -78,53 +78,83 @@
   const trackingInput = document.getElementById('trackingInput');
 
   fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-    statusDiv.innerHTML = `🤖 Groq Vision is analyzing the image...`;
+    statusDiv.innerHTML = `🤖 Groq Vision is analyzing ${files.length} image(s)...`;
     extractedDiv.style.display = 'none';
 
+    let allResults = [];
+    let allTrackingNumbers = new Set();
+
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const response = await fetch('/admin/smart-scan', {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        const data = result.data;
+      // Loop through each file and send to your working /admin/smart-scan route
+      for (let i = 0; i < files.length; i++) {
+        statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
         
-        // Auto-fill form
-        if (data.customer_name) customerNameInput.value = data.customer_name.toUpperCase();
-        if (data.customer_phone) customerPhoneInput.value = data.customer_phone;
-        if (data.city) cityInput.value = data.city.toUpperCase();
-        if (data.courier_name) courierSelect.value = data.courier_name;
-        if (data.tracking_number) trackingInput.value = data.tracking_number;
+        const formData = new FormData();
+        formData.append('image', files[i]);
 
-        // Show summary
+        const response = await fetch('/admin/smart-scan', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          allResults.push(result.data);
+          if (result.data.tracking_number) {
+            // Clean and add to Set for automatic deduplication
+            const cleanTracking = result.data.tracking_number.replace(/[\s-]/g, '').toUpperCase();
+            allTrackingNumbers.add(cleanTracking);
+          }
+        } else {
+          console.warn(`Failed to scan image ${i + 1}:`, result.error);
+        }
+      }
+
+      if (allResults.length > 0) {
+        // Aggregate data: take the first non-empty value found across all successful scans
+        const aggregate = {
+          customer_name: allResults.find(r => r.customer_name)?.customer_name || '',
+          customer_phone: allResults.find(r => r.customer_phone)?.customer_phone || '',
+          city: allResults.find(r => r.city)?.city || '',
+          courier_name: allResults.find(r => r.courier_name)?.courier_name || '',
+          address: allResults.find(r => r.address)?.address || ''
+        };
+
+        // Auto-fill form
+        if (aggregate.customer_name) customerNameInput.value = aggregate.customer_name.toUpperCase();
+        if (aggregate.customer_phone) customerPhoneInput.value = aggregate.customer_phone;
+        if (aggregate.city) cityInput.value = aggregate.city.toUpperCase();
+        if (aggregate.courier_name) courierSelect.value = aggregate.courier_name;
+        
+        // Fill deduplicated tracking numbers (one per line)
+        const uniqueTrackingArray = Array.from(allTrackingNumbers).sort();
+        trackingInput.value = uniqueTrackingArray.join('\n');
+
+        // Show detailed summary
         extractedInfo.innerHTML = `
           <strong style="color:#c9a961;">✅ Groq Vision Extraction Complete!</strong><br/>
           <div style="margin-top:.5rem;">
-            <strong>Courier:</strong> ${data.courier_name || 'Not detected'}<br/>
-            <strong>Tracking:</strong> ${data.tracking_number || 'Not detected'}<br/>
-            <strong>Customer:</strong> ${data.customer_name || 'Not detected'}<br/>
-            <strong>Phone:</strong> ${data.customer_phone || 'Not detected'}<br/>
-            <strong>City:</strong> ${data.city || 'Not detected'}
+            <strong>Images Processed:</strong> ${files.length} (Successful: ${allResults.length})<br/>
+            <strong>Unique Tracking Numbers:</strong> ${uniqueTrackingArray.length} (Duplicates removed)<br/>
+            <strong>Courier:</strong> ${aggregate.courier_name || 'Not detected'}<br/>
+            <strong>Customer:</strong> ${aggregate.customer_name || 'Not detected'}<br/>
+            <strong>Phone:</strong> ${aggregate.customer_phone || 'Not detected'}<br/>
+            <strong>City:</strong> ${aggregate.city || 'Not detected'}<br/>
+            ${aggregate.address ? `<strong>Address:</strong> ${aggregate.address}<br/>` : ''}
           </div>
         `;
         
-        statusDiv.innerHTML = `✅ Successfully processed with Groq Vision!`;
+        statusDiv.innerHTML = `✅ Successfully processed ${files.length} images!`;
         extractedDiv.style.display = 'block';
       } else {
-        statusDiv.innerHTML = `❌ AI parsing failed: ${result.error}`;
+        statusDiv.innerHTML = `❌ AI parsing failed for all images. Please check image quality.`;
       }
 
     } catch (err) {
-      statusDiv.innerHTML = '❌ Error processing image. Please try again.';
+      statusDiv.innerHTML = '❌ Error processing images. Please try again.';
       console.error(err);
     }
   });
