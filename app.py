@@ -1219,9 +1219,9 @@ def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
                     }
                 ],
                 temperature=0.0,
-                max_completion_tokens=4000,  # generous headroom so "high" reasoning can't get truncated — we want to see the REAL token usage, not guess
+                max_completion_tokens=2500,  # medium reasoning needs less headroom than high, but still generous
                 response_format={"type": "json_object"},
-                extra_body={"reasoning_effort": "high"}  # max reasoning depth Groq exposes for this model (there is no "xhigh" on Groq's API)
+                extra_body={"reasoning_effort": "medium"}  # middle ground between fast/sloppy "low" and token-hungry "high"
             )
             # Log actual token usage so we know exactly what "high" costs for this task
             if hasattr(resp, "usage") and resp.usage:
