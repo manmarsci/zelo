@@ -5,6 +5,7 @@ import uuid
 import secrets
 from datetime import datetime
 from functools import wraps
+from groq import Groq
 
 import duckdb
 import cloudinary.uploader
@@ -28,6 +29,8 @@ app.config["UPLOAD_FOLDER"] = "static/uploads"
 
 DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
+# Initialize Groq client
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 
@@ -1110,6 +1113,69 @@ def admin_courier_update():
             
     flash(f"✅ Successfully saved {saved_count} tracking slips for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
+
+# ---------- Admin: Groq-Powered Smart Parser ----------
+@app.route("/admin/smart-parse", methods=["POST"])
+@admin_required
+def admin_smart_parse():
+    """Use Groq's LLM to parse OCR text into structured data"""
+    if 'text' not in request.form:
+        return jsonify({"error": "No text provided"}), 400
+    
+    ocr_text = request.form['text']
+    
+    try:
+        # Use Groq's ultra-fast LLM to extract structured data
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-70b-versatile",  # or "llama-3.1-8b-instant" for faster/cheaper
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, CallCourier, Trax, M&P, etc.).
+                    
+Extract the following information and return ONLY valid JSON (no markdown, no explanations):
+
+{
+    "tracking_number": "The main tracking/AWB number (remove dashes/spaces)",
+    "courier_name": "Courier company name (PostEx, TCS, Leopards, CallCourier, Trax, M&P, BlueEx, etc.)",
+    "customer_name": "Consignee/Receiver/To name",
+    "customer_phone": "Phone number in format 03XXXXXXXXX",
+    "city": "Destination city (Lahore, Karachi, Islamabad, etc.)",
+    "address": "Complete delivery address"
+}
+
+Rules:
+- If a field is not found, use empty string ""
+- Clean up OCR errors (fix common mistakes like 0/O, 1/l/I confusion)
+- Pakistani phone numbers start with 03 and are 11 digits
+- Common cities: Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, Sialkot, Gujranwala, Hyderabad, Bahawalpur, etc.
+- Return ONLY the JSON, nothing else"""
+                },
+                {
+                    "role": "user",
+                    "content": f"""Extract data from this courier slip text:
+
+{ocr_text}
+
+Return only valid JSON."""
+                }
+            ],
+            temperature=0.1,  # Low temperature for consistent extraction
+            max_tokens=500
+        )
+        
+        # Parse the JSON response
+        import json
+        extracted_data = json.loads(response.choices[0].message.content.strip())
+        
+        return jsonify({
+            "success": True,
+            "data": extracted_data
+        })
+        
+    except Exception as e:
+        print(f"Groq Parsing Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 def handler(request):
     return app(request.environ, lambda *args: None)
