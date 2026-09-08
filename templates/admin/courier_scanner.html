@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<h1>Bulk Courier Slip Scanner</h1>
-<p class="muted">Upload multiple slip images. The system uses advanced OCR to extract tracking numbers accurately.</p>
+<h1>Smart Courier Slip Scanner</h1>
+<p class="muted">Upload slip images. The system will automatically extract tracking numbers, customer names, phones, and cities.</p>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; margin-top:2rem;">
   
@@ -14,50 +14,50 @@
     <div id="ocrStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
     
     <div id="extractedData" style="margin-top:1.5rem; display:none;">
-      <h4 style="margin-bottom:.5rem;">Extracted Text Preview:</h4>
-      <textarea id="rawText" rows="3" readonly style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:.8rem; background:#f9f9f9;"></textarea>
+      <h4 style="margin-bottom:.5rem;">Extracted Information:</h4>
+      <div id="extractedInfo" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:.9rem;"></div>
     </div>
   </div>
 
   <!-- RIGHT: Customer & Save Form -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">2. Customer & Tracking Details</h3>
+    <h3 style="margin-bottom:1rem;">2. Verify & Save</h3>
     <form method="post" action="{{ url_for('admin_courier_update') }}">
       
       <div style="margin-bottom:1rem;">
         <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name *</label>
-        <input type="text" name="customer_name" required placeholder="e.g. Abdul Manan" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        <input type="text" name="customer_name" id="customerName" required placeholder="Will be auto-filled from slip" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
       </div>
 
       <div style="margin-bottom:1rem;">
         <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone *</label>
-        <input type="tel" name="customer_phone" required placeholder="e.g. 03001234567" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        <input type="tel" name="customer_phone" id="customerPhone" required placeholder="Will be auto-filled from slip" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
       </div>
 
       <div style="margin-bottom:1rem;">
         <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
-        <input type="text" name="city" placeholder="e.g. Lahore" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        <input type="text" name="city" id="city" placeholder="Will be auto-filled from slip" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
       </div>
 
       <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name *</label>
-        <select name="courier_name" required style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
-          <option value="">-- Select Courier --</option>
-          <option>TCS</option>
-          <option>Leopards Courier</option>
-          <option>CallCourier</option>
-          <option>Trax</option>
-          <option>M&P (Pakistan Post)</option>
-          <option>PostEx</option>
-          <option>BlueEx</option>
-          <option>Swyft Logistics</option>
-          <option>Other</option>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name</label>
+        <select name="courier_name" id="courierName" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Auto-detected or Select --</option>
+          <option value="PostEx">PostEx</option>
+          <option value="TCS">TCS</option>
+          <option value="Leopards Courier">Leopards Courier</option>
+          <option value="CallCourier">CallCourier</option>
+          <option value="Trax">Trax</option>
+          <option value="M&P (Pakistan Post)">M&P (Pakistan Post)</option>
+          <option value="BlueEx">BlueEx</option>
+          <option value="Swyft Logistics">Swyft Logistics</option>
+          <option value="Other">Other</option>
         </select>
       </div>
 
       <div style="margin-bottom:1.5rem;">
         <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Numbers (One per line) *</label>
-        <textarea name="tracking_numbers" id="trackingInput" rows="6" required placeholder="Scanned numbers will appear here. You can edit or add more manually." style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;"></textarea>
+        <textarea name="tracking_numbers" id="trackingInput" rows="4" required placeholder="Tracking numbers will appear here" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1rem;"></textarea>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width:100%;">Save All Slips</button>
@@ -65,80 +65,135 @@
   </div>
 </div>
 
-<!-- Tesseract.js with Better Models -->
+<!-- Tesseract.js with Advanced Configuration -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
   const fileInput = document.getElementById('slipImages');
   const statusDiv = document.getElementById('ocrStatus');
   const extractedDiv = document.getElementById('extractedData');
-  const rawTextArea = document.getElementById('rawText');
+  const extractedInfo = document.getElementById('extractedInfo');
+  const customerNameInput = document.getElementById('customerName');
+  const customerPhoneInput = document.getElementById('customerPhone');
+  const cityInput = document.getElementById('city');
+  const courierSelect = document.getElementById('courierName');
   const trackingInput = document.getElementById('trackingInput');
 
   fileInput.addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    statusDiv.innerHTML = `⏳ Starting scan of ${files.length} images...`;
+    statusDiv.innerHTML = `⏳ Starting intelligent scan of ${files.length} images...`;
     extractedDiv.style.display = 'none';
-    trackingInput.value = '';
-    rawTextArea.value = '';
 
-    let allNumbers = new Set();
-    let allRawText = '';
+    let allTrackingNumbers = new Set();
+    let extractedData = {
+      names: [],
+      phones: [],
+      cities: [],
+      courier: null
+    };
 
     try {
       for (let i = 0; i < files.length; i++) {
         statusDiv.innerHTML = ` Scanning image ${i + 1} of ${files.length}...`;
         
-        // Advanced Tesseract configuration for better accuracy
+        // Advanced OCR with optimized settings for courier slips
         const { data: { text } } = await Tesseract.recognize(files[i], 'eng', {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              console.log(`Progress: ${Math.round(m.progress * 100)}%`);
-            }
-          },
-          errorHandler: err => console.error(err),
-          // Better OCR parameters
-          tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto page segmentation
-          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -./:', // Limit characters
+          tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -./:@()\\n',
           preserve_interword_spaces: '1',
         });
 
-        allRawText += `--- Image ${i+1} ---\n${text}\n\n`;
-        
-        // Smarter extraction for Pakistani courier formats
-        // Match patterns like:
-        // - 10-15 digit numbers (standard tracking)
-        // - Numbers with dashes/spaces (e.g., 123-456-789)
-        // - TCS format: TC followed by numbers
-        // - Leopards: LEO followed by numbers
-        const patterns = [
+        // Extract tracking numbers (various formats)
+        const trackingPatterns = [
+          /\b\d{3}[-]?\d{2}[-]?\d{7,9}\b/g,  // PostEx: 08640-01-090058781
           /\b\d{10,15}\b/g,                    // Standard 10-15 digits
-          /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{3,6}\b/g,  // Grouped numbers with separators
-          /\b(TC|TCS|LEO|LEOPARDS|CC|TRAX)\s*[-.]?\s*\d{6,12}\b/gi, // Courier-specific prefixes
-          /\b[A-Z]{2,4}\d{6,12}\b/g            // Alpha-numeric codes
+          /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{3,6}\b/g,
+          /\b(TC|TCS|LEO|LEOPARDS|CC|TRAX|PEX|POSTEX)\s*[-.]?\s*\d{6,12}\b/gi,
+          /\b[A-Z]{2,4}\d{6,12}\b/g
         ];
 
-        patterns.forEach(pattern => {
+        trackingPatterns.forEach(pattern => {
           const matches = text.match(pattern) || [];
           matches.forEach(match => {
-            // Clean up the match: remove spaces, convert to uppercase
             const cleaned = match.replace(/[\s-]/g, '').toUpperCase();
-            // Only add if it looks like a valid tracking number (has digits)
             if (/\d/.test(cleaned) && cleaned.length >= 8 && cleaned.length <= 20) {
-              allNumbers.add(cleaned);
+              allTrackingNumbers.add(cleaned);
             }
           });
         });
+
+        // Extract courier name
+        if (/postex/i.test(text)) extractedData.courier = 'PostEx';
+        else if (/tcs/i.test(text)) extractedData.courier = 'TCS';
+        else if (/leopards/i.test(text)) extractedData.courier = 'Leopards Courier';
+        else if (/callcourier/i.test(text)) extractedData.courier = 'CallCourier';
+        else if (/trax/i.test(text)) extractedData.courier = 'Trax';
+        else if (/blueex/i.test(text)) extractedData.courier = 'BlueEx';
+
+        // Extract customer name (look for "To" or "Consignee" sections)
+        const nameMatches = text.match(/(?:To|Consignee)[:\s]+([A-Za-z\s]+?)(?=\d{11}|Address|p\s*\d)/i);
+        if (nameMatches && nameMatches[1]) {
+          const name = nameMatches[1].trim().replace(/\s+/g, ' ');
+          if (name.length > 3 && name.length < 50) {
+            extractedData.names.push(name);
+          }
+        }
+
+        // Extract phone numbers (Pakistani format)
+        const phoneMatches = text.match(/03\d{9}/g);
+        if (phoneMatches) {
+          phoneMatches.forEach(phone => extractedData.phones.push(phone));
+        }
+
+        // Extract cities (Pakistani cities)
+        const cities = ['LAHORE', 'KARACHI', 'ISLAMABAD', 'RAWALPINDI', 'FAISALABAD', 'MULTAN', 
+                       'PESHAWAR', 'QUETTA', 'SIALKOT', 'GUJRANWALA', 'HYDERABAD', 'BAHAWALPUR',
+                       'SARGODHA', 'SUKKUR', 'LARKANA', 'ABBOTTABAD', 'MARDAN', 'GUJRAT',
+                       'SAHIWAL', 'JHELUM', 'KASUR', 'SADIQABAD', 'KHANPUR', 'BAHAWALNAGAR',
+                       'VEHARI', 'MUZAFFARGARH', 'TOBA TEK SINGH', 'GOJRA', 'MANDI BAHAUDDIN',
+                       'HAFIZABAD', 'WAZIRABAD', 'DASKA', 'PASRUR', 'NAROWAL', 'RAJANPUR',
+                       'DG KHAN', 'DERA GHAZI KHAN', 'LODRAN', 'KHANEWAL', 'JHANG', 'CHINIOT'];
+        
+        cities.forEach(city => {
+          if (new RegExp(`\\b${city}\\b`, 'i').test(text)) {
+            extractedData.cities.push(city);
+          }
+        });
       }
 
-      statusDiv.innerHTML = `✅ Successfully scanned ${files.length} images! Found ${allNumbers.size} unique tracking numbers.`;
-      rawTextArea.value = allRawText;
-      extractedDiv.style.display = 'block';
+      // Auto-fill the form with extracted data
+      if (extractedData.names.length > 0) {
+        customerNameInput.value = extractedData.names[0].toUpperCase();
+      }
+      if (extractedData.phones.length > 0) {
+        customerPhoneInput.value = extractedData.phones[0];
+      }
+      if (extractedData.cities.length > 0) {
+        cityInput.value = extractedData.cities[0].toUpperCase();
+      }
+      if (extractedData.courier) {
+        courierSelect.value = extractedData.courier;
+      }
 
-      // Populate textarea with numbers, one per line
-      const uniqueArray = Array.from(allNumbers).sort();
-      trackingInput.value = uniqueArray.join('\n');
+      // Display tracking numbers
+      const uniqueTracking = Array.from(allTrackingNumbers).sort();
+      trackingInput.value = uniqueTracking.join('\n');
+
+      // Show summary
+      extractedInfo.innerHTML = `
+        <strong style="color:#c9a961;">✅ Extraction Complete!</strong><br/>
+        <div style="margin-top:.5rem;">
+          <strong>Tracking Numbers:</strong> ${uniqueTracking.length}<br/>
+          <strong>Courier:</strong> ${extractedData.courier || 'Not detected'}<br/>
+          <strong>Customer:</strong> ${extractedData.names[0] || 'Not detected'}<br/>
+          <strong>Phone:</strong> ${extractedData.phones[0] || 'Not detected'}<br/>
+          <strong>City:</strong> ${extractedData.cities[0] || 'Not detected'}
+        </div>
+      `;
+
+      statusDiv.innerHTML = `✅ Successfully scanned ${files.length} images!`;
+      extractedDiv.style.display = 'block';
 
     } catch (err) {
       statusDiv.innerHTML = '❌ Error scanning images. Please try clearer photos.';

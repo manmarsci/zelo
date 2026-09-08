@@ -1072,9 +1072,9 @@ def admin_courier_scanner():
 @app.route("/admin/courier-scanner/update", methods=["POST"])
 @admin_required
 def admin_courier_update():
-    name = request.form.get("customer_name", "").strip()
+    name = request.form.get("customer_name", "").strip().upper()
     phone = request.form.get("customer_phone", "").strip()
-    city = request.form.get("city", "").strip()
+    city = request.form.get("city", "").strip().upper()
     tracking_text = request.form.get("tracking_numbers", "").strip()
     courier_name = request.form.get("courier_name", "").strip()
     
@@ -1090,10 +1090,11 @@ def admin_courier_update():
             "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
             [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
         )
-        flash(f"New customer '{name}' created successfully.", "success")
+        flash(f"✅ New customer '{name}' created successfully.", "success")
+    else:
+        flash(f"ℹ️ Customer '{name}' already exists. Slips saved.", "info")
 
     # 2. Process Multiple Tracking Numbers
-    # Split the textarea input by newlines and clean up whitespace
     tracking_numbers = [t.strip() for t in tracking_text.split('\n') if t.strip()]
     saved_count = 0
     
@@ -1104,10 +1105,10 @@ def admin_courier_update():
             execute("""
                 INSERT INTO courier_slips (customer_name, customer_phone, city, tracking_number, courier_name)
                 VALUES (?, ?, ?, ?, ?)
-            """, [name, phone, city, t_num, courier_name])
+            """, [name, phone, city, t_num, courier_name or 'Other'])
             saved_count += 1
             
-    flash(f"Successfully saved {saved_count} tracking slips for {name}!", "success")
+    flash(f"✅ Successfully saved {saved_count} tracking slips for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
 
 def handler(request):
