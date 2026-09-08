@@ -45,12 +45,28 @@
       try {
         const response = await fetch('/admin/smart-scan', { method: 'POST', body: formData });
         const result = await response.json();
-        if (result.success) createSlipCard(result.data, i + 1);
-      } catch (err) { console.error(`Error on image ${i + 1}:`, err); }
+        if (result.success) {
+          createSlipCard(result.data, i + 1);
+        } else {
+          console.error(`Scan failed on image ${i + 1} (HTTP ${response.status}):`, result.error);
+          showScanError(i + 1, files[i].name, result.error || `HTTP ${response.status}`);
+        }
+      } catch (err) {
+        console.error(`Network/parse error on image ${i + 1}:`, err);
+        showScanError(i + 1, files[i].name, `Request failed: ${err.message}`);
+      }
     }
     statusDiv.innerHTML = `✅ Finished scanning ${files.length} images!`;
     fileInput.value = '';
   });
+
+  function showScanError(index, filename, message) {
+    const card = document.createElement('div');
+    card.className = 'slip-card slip-card-error';
+    card.style.cssText = 'background:#fff4f2; padding:1.25rem; border-radius:8px; border:1px solid #f0b8ab; color:#a13a24;';
+    card.innerHTML = `<strong>❌ Slip #${index} (${filename}) failed to scan:</strong><br/>${message}`;
+    slipsContainer.appendChild(card);
+  }
 
   function createSlipCard(data, index) {
     slipCounter++;
