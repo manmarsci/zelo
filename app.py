@@ -1173,8 +1173,8 @@ Rules:
             ],
             temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
             max_completion_tokens=2000,  # reasoning tokens count against this too — 500 was getting cut off mid-"thinking"
-            reasoning_format="hidden",   # qwen3.6-27b is a thinking model; this strips the chain-of-thought so content is just the answer
-            response_format={"type": "json_object"}  # forces a valid JSON object back
+            response_format={"type": "json_object"},  # forces a valid JSON object back
+            extra_body={"reasoning_format": "hidden"}  # older SDKs don't expose this as a typed kwarg yet; extra_body passes it through
         )
         
         content = response.choices[0].message.content.strip()
