@@ -10,13 +10,29 @@
       <div>
         <h3 style="margin-bottom:0.5rem;">1. Select AI Model</h3>
         <select id="aiModel" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:.9rem;">
-          <optgroup label="🚀 Free Vision Models (OpenRouter)">
-            <option value="openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Nemotron 3 Nano Omni — Free • Image/Video/Audio</option>
-            <option value="openrouter/minimax/minimax-m3:free">MiniMax M3 — Free • Image/Video, 1M ctx</option>
+          <optgroup label=" Best for Documents (Most Accurate)">
+            <option value="openrouter/qwen/qwen-2.5-vl-72b-instruct:free">Qwen 2.5 VL 72B — Free • Best for text/documents</option>
+            <option value="openrouter/meta-llama/llama-3.2-11b-vision-instruct:free">Llama 3.2 11B Vision — Free • Excellent OCR</option>
+            <option value="openrouter/meta-llama/llama-3.2-90b-vision-instruct:free">Llama 3.2 90B Vision — Free • Very accurate</option>
+            <option value="openrouter/microsoft/phi-3.5-vision-instruct:free">Phi-3.5 Vision — Free • Great for receipts/docs</option>
+          </optgroup>
+          
+          <optgroup label="⚡ Fast & Free Models">
+            <option value="openrouter/minimax/minimax-m3:free">MiniMax M3 — Free • Fast, 1M context</option>
+            <option value="openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Nemotron 3 Nano Omni — Free • Multi-modal</option>
             <option value="openrouter/thinkingmachines/inkling:free">Inkling — Free • Image/Audio, 1M ctx</option>
-            <option value="openrouter/thinkingmachines/inkling-small:free">Inkling Small — Free • Faster, smaller</option>
+            <option value="openrouter/thinkingmachines/inkling-small:free">Inkling Small — Free • Faster version</option>
+          </optgroup>
+          
+          <optgroup label=" Specialized Models">
             <option value="openrouter/dots-studio/dots-3-note-preview:free">Dots3-Note Preview — Free • Multimodal</option>
-            <option value="openrouter/free">Auto Router (openrouter/free) — picks a free model</option>
+            <option value="openrouter/google/gemma-2-9b-it:free">Gemma 2 9B — Free • Google's model</option>
+            <option value="openrouter/mistralai/pixtral-12b-2409:free">Pixtral 12B — Free • Mistral's vision</option>
+          </optgroup>
+          
+          <optgroup label="🔄 Auto & Fallback">
+            <option value="openrouter/free">Auto Router (openrouter/free) — Auto-picks best free model</option>
+            <option value="qwen/qwen3.6-27b">Qwen 27B (Groq) — Fast, reliable fallback</option>
           </optgroup>
         </select>
       </div>
