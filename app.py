@@ -1268,7 +1268,7 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
 @app.route("/admin/smart-scan", methods=["POST"])
 @admin_required
 def admin_smart_scan():
-    """Use Gemini's Vision model to extract data directly from courier slip images"""
+    """Use Groq or OpenRouter Vision model to extract data from courier slip images"""
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
@@ -1276,17 +1276,130 @@ def admin_smart_scan():
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
     
+    # Get selected model (default to Groq's qwen model)
+    selected_model = request.form.get('model', 'qwen/qwen3.6-27b')
+    
     try:
+        # Read and encode image to base64
         img_bytes = file.read()
+        base64_image = base64.b64encode(img_bytes).decode('utf-8')
         mime_type = file.mimetype or 'image/jpeg'
         
-        response = call_gemini_vision_with_retry(img_bytes, mime_type)
+        # Check if using OpenRouter
+        if selected_model.startswith('openrouter/'):
+            # Use OpenRouter API
+            import requests
+            
+            # Extract the actual model name (remove 'openrouter/' prefix)
+            openrouter_model = selected_model.replace('openrouter/', '')
+            
+            headers = {
+                "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": request.host_url,
+                "X-Title": "ZELO Courier Scanner"
+            }
+            
+            payload = {
+                "model": openrouter_model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
+                                
+Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
+{
+    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
+    "courier_name": "Courier company name (e.g., PostEx, TCS)",
+    "customer_name": "Consignee/Receiver/To name",
+    "customer_phone": "Phone number in format 03XXXXXXXXX",
+    "city": "Destination city",
+    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
+    "description": "Item description (e.g., CLOTH)",
+    "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
+    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
+}
+
+Rules:
+- If a field is not found, use empty string ""
+- Pakistani phone numbers start with 03 and are 11 digits
+- Return ONLY the JSON, nothing else."""
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "max_tokens": 1000
+            }
+            
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+            
+            if response.status_code != 200:
+                print(f"OpenRouter API Error: {response.status_code} - {response.text}")
+                return jsonify({"error": f"OpenRouter API error: {response.status_code}"}), 500
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content'].strip()
+        else:
+            # Use Groq (existing logic)
+            response = groq_client.chat.completions.create(
+                model=selected_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
+                                
+Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
+{
+    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
+    "courier_name": "Courier company name (e.g., PostEx, TCS)",
+    "customer_name": "Consignee/Receiver/To name",
+    "customer_phone": "Phone number in format 03XXXXXXXXX",
+    "city": "Destination city",
+    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
+    "description": "Item description (e.g., CLOTH)",
+    "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
+    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
+}
+
+Rules:
+- If a field is not found, use empty string ""
+- Pakistani phone numbers start with 03 and are 11 digits
+- Return ONLY the JSON, nothing else."""
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.0,
+                max_completion_tokens=500,
+                response_format={"type": "json_object"},
+                extra_body={"reasoning_effort": "none"}
+            )
+            content = response.choices[0].message.content.strip()
         
-        content = (response.text or "").strip()
-        
-        # 🔥 ROBUST JSON EXTRACTION 🔥
-        # Find the first '{' and the last '}' to safely extract JSON 
-        # even if the model adds conversational text or markdown.
+        # Robust JSON extraction
         start_idx = content.find('{')
         end_idx = content.rfind('}')
         
@@ -1307,7 +1420,7 @@ def admin_smart_scan():
         })
         
     except Exception as e:
-        print(f"Gemini Vision Error: {e}")
+        print(f"Vision API Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 def handler(request):

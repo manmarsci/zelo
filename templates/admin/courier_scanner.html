@@ -4,10 +4,28 @@
 <p class="muted">Upload multiple slips. Each slip will create its own customer card with all extracted data.</p>
 
 <div style="display:grid; grid-template-columns: 1fr; gap:2rem; margin-top:2rem;">
+  <!-- Model Selection & Upload -->
   <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-    <h3 style="margin-bottom:1rem;">1. Upload Slip Images</h3>
-    <input type="file" id="slipImages" accept="image/*" multiple style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    <p class="muted small" style="margin-top:.5rem;">Hold Ctrl/Cmd to select multiple files.</p>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1rem;">
+      <div>
+        <h3 style="margin-bottom:0.5rem;">1. Select AI Model</h3>
+        <select id="aiModel" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:.9rem;">
+          <optgroup label="🚀 Free Vision Models (OpenRouter)">
+            <option value="openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Nemotron 3 Nano Omni — Free • Image/Video/Audio</option>
+            <option value="openrouter/minimax/minimax-m3:free">MiniMax M3 — Free • Image/Video, 1M ctx</option>
+            <option value="openrouter/thinkingmachines/inkling:free">Inkling — Free • Image/Audio, 1M ctx</option>
+            <option value="openrouter/thinkingmachines/inkling-small:free">Inkling Small — Free • Faster, smaller</option>
+            <option value="openrouter/dots-studio/dots-3-note-preview:free">Dots3-Note Preview — Free • Multimodal</option>
+            <option value="openrouter/free">Auto Router (openrouter/free) — picks a free model</option>
+          </optgroup>
+        </select>
+      </div>
+      <div>
+        <h3 style="margin-bottom:0.5rem;">2. Upload Slip Images</h3>
+        <input type="file" id="slipImages" accept="image/*" multiple style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+        <p class="muted small" style="margin-top:.5rem; margin-bottom:0;">Hold Ctrl/Cmd to select multiple files.</p>
+      </div>
+    </div>
     <div id="scanStatus" style="margin-top:1rem; font-size:.9rem; color:#8b7355; font-weight:600;"></div>
   </div>
 
@@ -23,6 +41,7 @@
 
 <script>
   const fileInput = document.getElementById('slipImages');
+  const aiModelSelect = document.getElementById('aiModel');
   const statusDiv = document.getElementById('scanStatus');
   const slipsContainer = document.getElementById('slipsContainer');
   const saveSection = document.getElementById('saveSection');
@@ -35,38 +54,31 @@
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    statusDiv.innerHTML = `🤖 Groq Vision is analyzing ${files.length} image(s)...`;
+    const selectedModel = aiModelSelect.value;
+    statusDiv.innerHTML = `🤖 Using ${selectedModel.split(' — ')[0]} to analyze ${files.length} image(s)...`;
     
     for (let i = 0; i < files.length; i++) {
-      statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
+      statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length} with ${selectedModel.split(' — ')[0]}...`;
       const formData = new FormData();
       formData.append('image', files[i]);
+      formData.append('model', selectedModel);
 
       try {
         const response = await fetch('/admin/smart-scan', { method: 'POST', body: formData });
         const result = await response.json();
-        if (result.success) {
-          createSlipCard(result.data, i + 1);
-        } else {
-          console.error(`Scan failed on image ${i + 1} (HTTP ${response.status}):`, result.error);
-          showScanError(i + 1, files[i].name, result.error || `HTTP ${response.status}`);
+        if (result.success) createSlipCard(result.data, i + 1);
+        else {
+          console.warn(`Failed to scan image ${i + 1}:`, result.error);
+          statusDiv.innerHTML += `<br/><span style="color:#c84b31;">️ Image ${i + 1} failed: ${result.error}</span>`;
         }
       } catch (err) {
-        console.error(`Network/parse error on image ${i + 1}:`, err);
-        showScanError(i + 1, files[i].name, `Request failed: ${err.message}`);
+        console.error(`Error on image ${i + 1}:`, err);
+        statusDiv.innerHTML += `<br/><span style="color:#c84b31;"> Image ${i + 1} error</span>`;
       }
     }
     statusDiv.innerHTML = `✅ Finished scanning ${files.length} images!`;
     fileInput.value = '';
   });
-
-  function showScanError(index, filename, message) {
-    const card = document.createElement('div');
-    card.className = 'slip-card slip-card-error';
-    card.style.cssText = 'background:#fff4f2; padding:1.25rem; border-radius:8px; border:1px solid #f0b8ab; color:#a13a24;';
-    card.innerHTML = `<strong>❌ Slip #${index} (${filename}) failed to scan:</strong><br/>${message}`;
-    slipsContainer.appendChild(card);
-  }
 
   function createSlipCard(data, index) {
     slipCounter++;
@@ -167,16 +179,13 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slips })
       });
-      
       const result = await response.json();
-      
       if (result.success) {
         alert(`✅ Successfully saved ${result.saved} unique slips!`);
         slipsContainer.innerHTML = '';
         updateCount();
         window.location.reload();
       } else {
-        // Show the actual error from the backend
         alert('❌ Error saving slips: ' + (result.error || 'Unknown error'));
       }
     } catch (err) {
