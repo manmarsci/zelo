@@ -814,21 +814,51 @@ def admin_customers():
 @admin_required
 def admin_customer_add():
     if request.method == "POST":
-        name = request.form["name"].strip()
+        name = request.form["name"].strip().upper()
         email = request.form["email"].strip().lower()
-        phone = request.form.get("phone", "").strip()
-        password = request.form.get("password", "customer123")  # Default password
+        phone = request.form["phone"].strip()
+        city = request.form.get("city", "").strip().upper()
+        address = request.form.get("address", "").strip()
+        
+        # Courier slip fields
+        courier_name = request.form.get("courier_name", "").strip()
+        slip_date = request.form.get("slip_date", "").strip()
+        description = request.form.get("description", "").strip()
+        charges = request.form.get("charges", "").strip()
+        tracking_number = request.form.get("tracking_number", "").strip()
         
         existing = query_one("SELECT id FROM users WHERE email = ?", [email])
         if existing:
             flash("Email already exists.", "error")
             return redirect(url_for("admin_customer_add"))
         
+        # Check if phone already exists
+        phone_exists = query_one("SELECT id FROM users WHERE phone = ?", [phone])
+        if phone_exists:
+            flash("Phone number already exists.", "error")
+            return redirect(url_for("admin_customer_add"))
+        
         execute(
-            "INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')",
-            [name, email, phone, generate_password_hash(password, method='pbkdf2:sha256')]
+            "INSERT INTO users (name, email, phone, password_hash, role, city, address) VALUES (?,?,?,?,?,?,?)",
+            [name, email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), 'customer', city, address]
         )
-        flash(f"Customer {name} added successfully.", "success")
+        
+        # If tracking number is provided, create a courier slip
+        if tracking_number:
+            # Check if tracking number already exists
+            tracking_exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
+            if not tracking_exists:
+                execute("""
+                    INSERT INTO courier_slips 
+                    (customer_name, customer_phone, city, address, tracking_number, courier_name, slip_date, description, charges)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, [name, phone, city, address, tracking_number, courier_name, slip_date, description, charges])
+                flash(f"Customer '{name}' added successfully with tracking number {tracking_number}.", "success")
+            else:
+                flash(f"Customer '{name}' added, but tracking number {tracking_number} already exists.", "warning")
+        else:
+            flash(f"Customer '{name}' added successfully.", "success")
+            
         return redirect(url_for("admin_customers"))
     
     return render_template("admin/customer_form.html")

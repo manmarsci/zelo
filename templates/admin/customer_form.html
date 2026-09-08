@@ -1,31 +1,83 @@
 {% extends "admin/base.html" %}
 {% block content %}
 <h1>Add New Customer</h1>
-<form method="post" class="admin-form">
-  <div class="form-row-2">
-    <div>
-      <label>Full Name *</label>
-      <input type="text" name="name" required />
+
+<div style="background:#fff; padding:2rem; border-radius:8px; border:1px solid #e8e1d1; max-width:900px;">
+  <form method="post">
+    <h3 style="margin-top:0; color:#8b7355; border-bottom:2px solid #e8e1d1; padding-bottom:0.5rem;">Customer Information</h3>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name *</label>
+        <input type="text" name="name" required placeholder="e.g. MUHAMMAD AHMED" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Email *</label>
+        <input type="email" name="email" required placeholder="e.g. 03001234567@zelolive.com" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone *</label>
+        <input type="tel" name="phone" required placeholder="03001234567" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
+        <input type="text" name="city" placeholder="e.g. LAHORE" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div style="grid-column: 1 / -1;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Full Address</label>
+        <textarea name="address" rows="3" placeholder="Complete delivery address" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:inherit;"></textarea>
+      </div>
     </div>
-    <div>
-      <label>Email *</label>
-      <input type="email" name="email" required />
+
+    <h3 style="color:#8b7355; border-bottom:2px solid #e8e1d1; padding-bottom:0.5rem; margin-top:2rem;">Courier Slip Information (Optional)</h3>
+    <p class="muted small" style="margin-bottom:1rem;">If this customer has an existing courier slip, fill in the details below.</p>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Tracking Number *</label>
+        <input type="text" name="tracking_number" placeholder="e.g. 08640-01-090058781" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier Name</label>
+        <select name="courier_name" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Select Courier --</option>
+          <option value="PostEx">PostEx</option>
+          <option value="TCS">TCS</option>
+          <option value="Leopards Courier">Leopards Courier</option>
+          <option value="CallCourier">CallCourier</option>
+          <option value="Trax">Trax</option>
+          <option value="M&P (Pakistan Post)">M&P (Pakistan Post)</option>
+          <option value="BlueEx">BlueEx</option>
+          <option value="Swyft Logistics">Swyft Logistics</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Slip Date (Booking/Dispatch)</label>
+        <input type="text" name="slip_date" placeholder="e.g. 2026-09-05" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Description</label>
+        <input type="text" name="description" placeholder="e.g. CLOTH" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Charges</label>
+        <input type="text" name="charges" placeholder="e.g. Payable Amount: 295" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
     </div>
-  </div>
-  <div class="form-row-2">
-    <div>
-      <label>Phone Number</label>
-      <input type="tel" name="phone" />
+
+    <div style="display:flex; gap:1rem; margin-top:2rem; padding-top:1.5rem; border-top:1px solid #e8e1d1;">
+      <button type="submit" class="btn btn-primary" style="padding:1rem 2rem;">Save Customer</button>
+      <a href="{{ url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
     </div>
-    <div>
-      <label>Initial Password</label>
-      <input type="text" name="password" value="customer123" placeholder="Default: customer123" />
-      <small class="muted">Customer can change this after first login</small>
-    </div>
-  </div>
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Add Customer</button>
-    <a href="{{ url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
-  </div>
-</form>
+  </form>
+</div>
 {% endblock %}
