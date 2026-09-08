@@ -1119,58 +1119,60 @@ def admin_courier_scanner():
 @app.route("/admin/courier-scanner/update", methods=["POST"])
 @admin_required
 def admin_courier_update():
-    # Accept JSON payload from the new bulk scanner
     if not request.is_json:
-        flash("Invalid data format.", "error")
-        return redirect(url_for("admin_courier_scanner"))
+        return jsonify({"success": False, "error": "Invalid data format"}), 400
         
     data = request.get_json()
     slips = data.get('slips', [])
     saved_count = 0
     
-    for slip in slips:
-        name = slip.get("customer_name", "").strip().upper()
-        phone = slip.get("customer_phone", "").strip()
-        city = slip.get("city", "").strip().upper()
-        address = slip.get("address", "").strip()
-        courier_name = slip.get("courier_name", "").strip()
-        description = slip.get("description", "").strip()
-        charges = slip.get("charges", "").strip()
-        slip_date = slip.get("slip_date", "").strip() # NEW
+    try:
+        for slip in slips:
+            name = slip.get("customer_name", "").strip().upper()
+            phone = slip.get("customer_phone", "").strip()
+            city = slip.get("city", "").strip().upper()
+            address = slip.get("address", "").strip()
+            courier_name = slip.get("courier_name", "").strip()
+            description = slip.get("description", "").strip()
+            charges = slip.get("charges", "").strip()
+            slip_date = slip.get("slip_date", "").strip()
+            tracking_number = slip.get("tracking_number", "").strip()
+
+            if not name or not phone or not tracking_number:
+                continue
+
+            # 1. Create/Update Customer
+            existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
+            if not existing_user:
+                placeholder_email = f"{phone}@zelolive.com"
+                existing_email = query_one("SELECT id FROM users WHERE email = ?", [placeholder_email])
+                if not existing_email:
+                    execute("""
+                        INSERT INTO users (name, email, phone, password_hash, role, city, address) 
+                        VALUES (?, ?, ?, ?, 'customer', ?, ?)
+                    """, [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), city, address])
+            else:
+                if address or city:
+                    execute("""
+                        UPDATE users SET city = COALESCE(NULLIF(?, ''), city), 
+                                         address = COALESCE(NULLIF(?, ''), address) 
+                        WHERE id = ?
+                    """, [city, address, existing_user['id']])
+
+            # 2. Save the Slip (Deduplicated)
+            exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
+            if not exists:
+                execute("""
+                    INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name, description, charges, slip_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges, slip_date])
+                saved_count += 1
+                
+        return jsonify({"success": True, "saved": saved_count})
         
-        tracking_number = slip.get("tracking_number", "").strip()
-
-        if not name or not phone or not tracking_number:
-            continue
-
-        # 1. Create/Update Customer
-        existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
-        if not existing_user:
-            placeholder_email = f"{phone}@zelolive.com"
-            existing_email = query_one("SELECT id FROM users WHERE email = ?", [placeholder_email])
-            if not existing_email:
-                execute("""
-                    INSERT INTO users (name, email, phone, password_hash, role, city, address) 
-                    VALUES (?, ?, ?, ?, 'customer', ?, ?)
-                """, [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), city, address])
-        else:
-            if address or city:
-                execute("""
-                    UPDATE users SET city = COALESCE(NULLIF(?, ''), city), 
-                                     address = COALESCE(NULLIF(?, ''), address) 
-                    WHERE id = ?
-                """, [city, address, existing_user['id']])
-
-        # 2. Save the Slip (Deduplicated)
-        exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
-        if not exists:
-            execute("""
-                INSERT INTO courier_slips (customer_name, customer_phone, city, address, tracking_number, courier_name, description, charges, slip_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges, slip_date])
-            saved_count += 1
-            
-    return jsonify({"success": True, "saved": saved_count})
+    except Exception as e:
+        print(f"DATABASE ERROR SAVING SLIPS: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ---------- Admin: Groq Vision Smart Scanner ----------
@@ -1212,7 +1214,7 @@ Extract the following information and return ONLY a valid JSON object. Do not in
     "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
     "description": "Item description (e.g., CLOTH)",
     "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
-    "slip_date": "The date printed on the slip (Booking/Dispatch date). Format as YYYY-MM-DD if possible, or exactly as written."
+    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
 }
 
 Rules:

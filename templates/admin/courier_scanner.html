@@ -151,17 +151,24 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slips })
       });
+      
       const result = await response.json();
+      
       if (result.success) {
         alert(`✅ Successfully saved ${result.saved} unique slips!`);
         slipsContainer.innerHTML = '';
         updateCount();
         window.location.reload();
-      } else { alert('❌ Error saving slips.'); }
-    } catch (err) { alert('❌ Network error.'); }
-    finally {
+      } else {
+        // Show the actual error from the backend
+        alert('❌ Error saving slips: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Fetch Error:', err);
+      alert('❌ Network error or server crashed. Please check the Vercel logs for details.');
+    } finally {
       saveAllBtn.disabled = false;
-      saveAllBtn.textContent = ' Save All Customers & Slips';
+      saveAllBtn.textContent = '💾 Save All Customers & Slips';
     }
   });
 </script>
