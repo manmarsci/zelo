@@ -759,6 +759,28 @@ def admin_order_status(oid):
     flash("Order status updated.", "success")
     return redirect(request.referrer or url_for("admin_orders"))
 
+@app.route("/admin/orders/delete", methods=["POST"])
+@admin_required
+def admin_orders_bulk_delete():
+    # Get list of selected IDs
+    ids_to_delete = request.form.getlist('order_ids')
+    
+    if not ids_to_delete:
+        flash("No orders selected.", "warning")
+        return redirect(url_for("admin_orders"))
+        
+    deleted_count = 0
+    
+    for oid in ids_to_delete:
+        # 1. Delete associated order items first to prevent orphaned data
+        execute("DELETE FROM order_items WHERE order_id = ?", [oid])
+        # 2. Delete the order itself
+        execute("DELETE FROM orders WHERE id = ?", [oid])
+        deleted_count += 1
+            
+    flash(f"Successfully deleted {deleted_count} order(s) and their items.", "success")
+    return redirect(url_for("admin_orders"))
+
 @app.route("/admin/customer/<int:uid>/edit", methods=["GET", "POST"])
 @admin_required
 def admin_customer_edit(uid):
@@ -787,6 +809,29 @@ def admin_customer_edit(uid):
     slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user["phone"]])
     
     return render_template("admin/customer_edit.html", user=user, slips=slips)
+
+@app.route("/admin/customers/delete", methods=["POST"])
+@admin_required
+def admin_customers_bulk_delete():
+    # Get list of selected IDs
+    ids_to_delete = request.form.getlist('customer_ids')
+    
+    if not ids_to_delete:
+        flash("No customers selected.", "warning")
+        return redirect(url_for("admin_customers"))
+        
+    current_admin_id = session.get("user_id")
+    deleted_count = 0
+    
+    for uid in ids_to_delete:
+        # Safety check: Only delete actual customers, and never delete yourself
+        user = query_one("SELECT id, role FROM users WHERE id = ?", [uid])
+        if user and user['role'] == 'customer' and user['id'] != current_admin_id:
+            execute("DELETE FROM users WHERE id = ?", [uid])
+            deleted_count += 1
+            
+    flash(f"Successfully deleted {deleted_count} customer(s).", "success")
+    return redirect(url_for("admin_customers"))
 
 @app.route("/admin/customer/<int:uid>/delete", methods=["POST"])
 @admin_required
