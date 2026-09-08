@@ -1204,8 +1204,8 @@ def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
     """Calls Groq vision API, retrying with backoff if we hit the 429 rate limit."""
     for attempt in range(max_retries):
         try:
-            return groq_client.chat.completions.create(
-                model="qwen/qwen3.8-27b",  # newer vision model than 3.6 — supports tunable reasoning_effort (low/medium/high) instead of just none/default
+            resp = groq_client.chat.completions.create(
+                model="qwen/qwen3.8-27b",
                 messages=[
                     {
                         "role": "user",
@@ -1219,10 +1219,16 @@ def call_groq_vision_with_retry(base64_image, mime_type, max_retries=3):
                     }
                 ],
                 temperature=0.0,
-                max_completion_tokens=1000,
+                max_completion_tokens=4000,  # generous headroom so "high" reasoning can't get truncated — we want to see the REAL token usage, not guess
                 response_format={"type": "json_object"},
-                extra_body={"reasoning_effort": "low"}  # enough reasoning to catch small/rotated text without the token blowout "default" caused on 3.6
+                extra_body={"reasoning_effort": "high"}  # max reasoning depth Groq exposes for this model (there is no "xhigh" on Groq's API)
             )
+            # Log actual token usage so we know exactly what "high" costs for this task
+            if hasattr(resp, "usage") and resp.usage:
+                print(f"🔢 Token usage — prompt: {resp.usage.prompt_tokens}, "
+                      f"completion: {resp.usage.completion_tokens}, "
+                      f"total: {resp.usage.total_tokens}")
+            return resp
         except RateLimitError:
             if attempt < max_retries - 1:
                 wait = 2 ** attempt  # 1s, 2s, 4s
