@@ -3,10 +3,18 @@
 <div class="admin-head">
   <h1>Customers</h1>
   <a href="{{ url_for('admin_customer_add') }}" class="btn btn-primary">+ Add Customer</a>
-  <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem;">Edit</a>
 </div>
+
 <table class="admin-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Joined</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
   <tbody>
     {% for c in customers %}
       <tr>
@@ -14,6 +22,13 @@
         <td>{{ c.email }}</td>
         <td>{{ c.phone or '-' }}</td>
         <td>{{ c.created_at }}</td>
+        <td>
+          <a href="{{ url_for('admin_customer_edit', uid=c.id) }}" class="btn btn-outline" style="padding:.25rem .5rem; font-size:.8rem;">Edit</a>
+        </td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="5" style="text-align:center; padding:2rem; color:#8b7355;">No customers found.</td>
       </tr>
     {% endfor %}
   </tbody>
