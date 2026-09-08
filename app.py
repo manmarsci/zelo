@@ -1138,7 +1138,7 @@ def admin_smart_scan():
         
         # Use your Qwen vision model
         response = groq_client.chat.completions.create(
-            model="qwen/qwen2.5-vl-72b-instruct",  # Update this if your model name is slightly different
+            model="qwen/qwen3.6-27b",  # Update this if your model name is slightly different
             messages=[
                 {
                     "role": "user",
