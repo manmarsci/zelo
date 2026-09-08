@@ -1172,9 +1172,9 @@ Rules:
                 }
             ],
             temperature=0.0,  # Set to 0 for maximum determinism and strict JSON
-            max_completion_tokens=2000,  # reasoning tokens count against this too — 500 was getting cut off mid-"thinking"
+            max_completion_tokens=500,  # non-thinking mode needs far fewer tokens — just the JSON, no reasoning
             response_format={"type": "json_object"},  # forces a valid JSON object back
-            extra_body={"reasoning_format": "hidden"}  # older SDKs don't expose this as a typed kwarg yet; extra_body passes it through
+            extra_body={"reasoning_effort": "none"}  # puts Qwen 3.6 27B in non-thinking mode — no chain-of-thought tokens at all, avoids the OTPM rate limit
         )
         
         content = response.choices[0].message.content.strip()
