@@ -56,27 +56,50 @@
 
     const selectedModel = aiModelSelect.value;
     statusDiv.innerHTML = `🤖 Using ${selectedModel.split(' — ')[0]} to analyze ${files.length} image(s)...`;
+    slipsContainer.innerHTML = ''; // Clear previous results
+    slipCounter = 0;
+    updateCount();
+    
+    let successCount = 0;
+    let failCount = 0;
     
     for (let i = 0; i < files.length; i++) {
-      statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length} with ${selectedModel.split(' — ')[0]}...`;
+      statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
       const formData = new FormData();
       formData.append('image', files[i]);
       formData.append('model', selectedModel);
 
       try {
-        const response = await fetch('/admin/smart-scan', { method: 'POST', body: formData });
+        const response = await fetch('/admin/smart-scan', { 
+          method: 'POST', 
+          body: formData 
+        });
+        
         const result = await response.json();
-        if (result.success) createSlipCard(result.data, i + 1);
-        else {
-          console.warn(`Failed to scan image ${i + 1}:`, result.error);
-          statusDiv.innerHTML += `<br/><span style="color:#c84b31;">️ Image ${i + 1} failed: ${result.error}</span>`;
+        console.log(`Image ${i + 1} response:`, result);
+        
+        if (result.success && result.data) {
+          createSlipCard(result.data, i + 1);
+          successCount++;
+        } else {
+          failCount++;
+          const errorMsg = result.error || 'Unknown error';
+          statusDiv.innerHTML += `<br/><span style="color:#c84b31;">❌ Image ${i + 1} failed: ${errorMsg}</span>`;
+          console.error(`Image ${i + 1} failed:`, errorMsg);
         }
       } catch (err) {
-        console.error(`Error on image ${i + 1}:`, err);
-        statusDiv.innerHTML += `<br/><span style="color:#c84b31;"> Image ${i + 1} error</span>`;
+        failCount++;
+        statusDiv.innerHTML += `<br/><span style="color:#c84b31;">❌ Image ${i + 1} network error: ${err.message}</span>`;
+        console.error(`Image ${i + 1} fetch error:`, err);
       }
     }
-    statusDiv.innerHTML = `✅ Finished scanning ${files.length} images!`;
+    
+    if (successCount > 0) {
+      statusDiv.innerHTML += `<br/><br/><strong style="color:#4a7c59;">✅ Successfully processed ${successCount} of ${files.length} images!</strong>`;
+    } else {
+      statusDiv.innerHTML += `<br/><br/><strong style="color:#c84b31;">❌ All ${files.length} images failed to process. Check console for details.</strong>`;
+    }
+    
     fileInput.value = '';
   });
 
