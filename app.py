@@ -1075,11 +1075,11 @@ def admin_courier_update():
     name = request.form.get("customer_name", "").strip()
     phone = request.form.get("customer_phone", "").strip()
     city = request.form.get("city", "").strip()
-    tracking_number = request.form.get("tracking_number", "").strip()
+    tracking_text = request.form.get("tracking_numbers", "").strip()
     courier_name = request.form.get("courier_name", "").strip()
     
-    if not name or not phone or not tracking_number:
-        flash("Name, Phone, and Tracking Number are required.", "error")
+    if not name or not phone or not tracking_text:
+        flash("Name, Phone, and Tracking Numbers are required.", "error")
         return redirect(url_for("admin_courier_scanner"))
     
     # 1. Create Customer if they don't exist
@@ -1091,16 +1091,23 @@ def admin_courier_update():
             [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256')]
         )
         flash(f"New customer '{name}' created successfully.", "success")
-    else:
-        flash(f"Customer '{name}' already exists. Slip saved.", "info")
 
-    # 2. Save the Courier Slip
-    execute("""
-        INSERT INTO courier_slips (customer_name, customer_phone, city, tracking_number, courier_name)
-        VALUES (?, ?, ?, ?, ?)
-    """, [name, phone, city, tracking_number, courier_name])
+    # 2. Process Multiple Tracking Numbers
+    # Split the textarea input by newlines and clean up whitespace
+    tracking_numbers = [t.strip() for t in tracking_text.split('\n') if t.strip()]
+    saved_count = 0
     
-    flash(f"Tracking {tracking_number} saved for {name}!", "success")
+    for t_num in tracking_numbers:
+        # Prevent duplicate tracking numbers
+        exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [t_num])
+        if not exists:
+            execute("""
+                INSERT INTO courier_slips (customer_name, customer_phone, city, tracking_number, courier_name)
+                VALUES (?, ?, ?, ?, ?)
+            """, [name, phone, city, t_num, courier_name])
+            saved_count += 1
+            
+    flash(f"Successfully saved {saved_count} tracking slips for {name}!", "success")
     return redirect(url_for("admin_courier_scanner"))
 
 def handler(request):
