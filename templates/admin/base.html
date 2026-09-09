@@ -5,6 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — ZELO LIVE BOUTIQUE</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+<style>
+/* Mobile Menu Button (Hidden on Desktop) */
+.mobile-menu-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: #1a1a1a; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+@media (max-width: 768px) {
+    /* Sidebar becomes a slide-out drawer */
+    .admin-sidebar, nav.sidebar, aside { 
+        position: fixed !important; 
+        left: -280px !important; 
+        top: 0 !important; 
+        height: 100vh !important; 
+        transition: left 0.3s ease !important; 
+        z-index: 1000 !important; 
+        width: 250px !important;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    .admin-sidebar.open, nav.sidebar.open, aside.open { left: 0 !important; }
+    
+    /* Show Hamburger Button */
+    .mobile-menu-btn { display: block !important; }
+    
+    /* Main Content Adjustments */
+    .admin-content, main, .container { margin-left: 0 !important; padding: 60px 15px 15px 15px !important; width: 100% !important; box-sizing: border-box; }
+    
+    /* Force Tables to Scroll Horizontally */
+    table, .admin-table { display: block !important; overflow-x: auto !important; white-space: nowrap !important; width: 100% !important; }
+    
+    /* Stack Grids and Forms */
+    div[style*="grid-template-columns: 1fr 1fr"], div[style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+    input, select, textarea, button { width: 100% !important; box-sizing: border-box; margin-bottom: 10px; }
+    
+    /* Fix specific button groups */
+    div[style*="display:flex"] { flex-direction: column !important; }
+    div[style*="display:flex"] button { margin-bottom: 5px; }
+}
+</style>
+
 </head>
 <body class="admin-body">
   <aside class="admin-sidebar">
@@ -115,6 +153,27 @@ function closeQuickTrack() {
 // Close modal on outside click
 document.getElementById('quickTrackModal').addEventListener('click', function(e) {
   if (e.target === this) closeQuickTrack();
+});
+</script>
+
+
+<!-- Mobile Menu Toggle -->
+<button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+<script>
+function toggleMobileMenu() {
+    // Try to find common sidebar class names
+    const sidebar = document.querySelector('.admin-sidebar') || document.querySelector('nav.sidebar') || document.querySelector('aside') || document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('open');
+    }
+}
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', function(event) {
+    const sidebar = document.querySelector('.admin-sidebar') || document.querySelector('nav.sidebar') || document.querySelector('aside') || document.querySelector('.sidebar');
+    const btn = document.querySelector('.mobile-menu-btn');
+    if (window.innerWidth <= 768 && sidebar && !sidebar.contains(event.target) && !btn.contains(event.target)) {
+        sidebar.classList.remove('open');
+    }
 });
 </script>
 

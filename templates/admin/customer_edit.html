@@ -99,20 +99,16 @@
     <p class="muted">No courier slips found for this customer.</p>
   {% endif %}
 </div>
-{% endblock %}
-
 
 <script>
+function quickTrack(trackingNumber) {
+  window.open('/track?number=' + trackingNumber, '_blank');
+}
 
-
-
-
-
-<script>
 function shareTrackingLink(trackingNumber, customerName) {
   const baseUrl = window.location.origin || 'https://zelo-theta-murex.vercel.app';
   const url = baseUrl + '/track?number=' + trackingNumber;
-  
+
   if (navigator.share) {
     navigator.share({ title: 'Track Your Order', text: 'Track your ZELO order', url: url })
     .then(() => showToast('✅ Shared successfully!', '#22c55e'))
@@ -145,3 +141,4 @@ function showToast(message, color) {
   setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 </script>
+{% endblock %}
