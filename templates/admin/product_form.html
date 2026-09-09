@@ -153,6 +153,49 @@ document.addEventListener('DOMContentLoaded', () => {
     <button type="submit" class="btn btn-primary">{{ "Update" if product else "Create" }} Product</button>
     <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
   </div>
+
+<!-- NEW: Bundle Builder Section -->
+<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; margin-top:2rem;">
+  <h3 style="margin-top:0; color:#8b7355; border-bottom:2px solid #e8e1d1; padding-bottom:0.5rem;"> Bundle Details (For Leftovers & Suits)</h3>
+  <p class="muted small">Use this section to specify exactly what pieces are included in this unique item.</p>
+  
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-top:1rem;">
+    
+    <div>
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Bundle Type</label>
+      <select name="bundle_type" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+        <option value="complete_3pc">Complete 3-Piece Suit</option>
+        <option value="complete_4pc">Complete 4-Piece Suit (with Trouser)</option>
+        <option value="incomplete">Incomplete / Single Piece</option>
+        <option value="patches_laces">Patches & Laces Only</option>
+        <option value="standard" selected>Standard Product</option>
+      </select>
+    </div>
+
+    <div>
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Included Pieces</label>
+      <div style="display:flex; flex-wrap:wrap; gap:1rem; padding:.5rem; background:#fff; border:1px solid #d8d2c4; border-radius:6px;">
+        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="kameez" /> Kameez (Shirt)</label>
+        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="dupatta" /> Dupatta</label>
+        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="shalwar" /> Shalwar/Trouser</label>
+        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="patches" /> Patches</label>
+        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="laces" /> Laces</label>
+      </div>
+    </div>
+
+    <div>
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Kameez Length (Meters/Yards)</label>
+      <input type="text" name="kameez_length" placeholder="e.g. 2.5 Meters" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    </div>
+
+    <div>
+      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Dupatta Length (Meters/Yards)</label>
+      <input type="text" name="dupatta_length" placeholder="e.g. 2.0 Meters" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+    </div>
+
+  </div>
+</div>
+
 </form>
 
 <script>

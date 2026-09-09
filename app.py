@@ -671,7 +671,22 @@ def admin_product_form(pid=None):
 
         slug = slugify(f["name"]) if not (product and product["slug"]) else product["slug"]
         
-        # Data for DB (added features_json at the end)
+        # --- Handle Bundle Info (New) ---
+        included_pieces = request.form.getlist('included_pieces')
+        bundle_type = request.form.get('bundle_type', 'standard')
+        kameez_length = request.form.get('kameez_length', '').strip()
+        dupatta_length = request.form.get('dupatta_length', '').strip()
+        
+        bundle_info = json.dumps({
+            "type": bundle_type,
+            "pieces": included_pieces,
+            "measurements": {
+                "kameez": kameez_length,
+                "dupatta": dupatta_length
+            }
+        })
+
+        # Data for DB (added features_json and bundle_info at the end)
         data = [
             f["name"], slug, f.get("description", ""), f.get("fabric", ""),
             int(f["brand_id"]) or None, int(f["category_id"]) or None,
@@ -683,7 +698,8 @@ def admin_product_form(pid=None):
             f.get("is_popular") == "on",
             f.get("is_sale") == "on",
             f.get("is_active") == "on",
-            features_json
+            features_json,
+            bundle_info
         ]
 
         if product:
@@ -691,7 +707,7 @@ def admin_product_form(pid=None):
                 UPDATE products SET name=?, slug=?, description=?, fabric=?,
                     brand_id=?, category_id=?, original_price=?, sale_price=?,
                     stock=?, sizes=?, colors=?, is_new_arrival=?, is_popular=?,
-                    is_sale=?, is_active=?, features=?
+                    is_sale=?, is_active=?, features=?, bundle_info=?
                 WHERE id=?
             """, data + [pid])
             flash("Product updated.", "success")
@@ -700,8 +716,8 @@ def admin_product_form(pid=None):
                 INSERT INTO products
                 (name, slug, description, fabric, brand_id, category_id,
                  original_price, sale_price, stock, sizes, colors,
-                 is_new_arrival, is_popular, is_sale, is_active, features)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 is_new_arrival, is_popular, is_sale, is_active, features, bundle_info)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, data)
             new_p = query_one("SELECT id FROM products WHERE slug = ?", [slug])
             pid = new_p["id"]
