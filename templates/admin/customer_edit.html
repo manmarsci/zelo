@@ -100,19 +100,29 @@
 
 
 <script>
-function copyTrackingLink(trackingNumber) {
+
+
+
+<script>
+function shareTrackingLink(trackingNumber, customerName) {
   const baseUrl = window.location.origin || 'https://zelo-theta-murex.vercel.app';
   const url = baseUrl + '/track?number=' + trackingNumber;
+  const message = 'Hi ' + customerName + '! Track your order here: ' + url;
   
-  // Try modern clipboard API first
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(url).then(function() {
-      showCopyFeedback('✅ Link copied to clipboard!');
+  // Try Web Share API first (works on mobile)
+  if (navigator.share) {
+    navigator.share({
+      title: 'Track Your Order',
+      text: 'Track your ZELO order #' + trackingNumber,
+      url: url
+    }).then(function() {
+      showToast('✅ Shared successfully!', '#22c55e');
     }).catch(function(err) {
-      console.error('Clipboard API failed:', err);
+      console.log('Share cancelled or failed:', err);
       fallbackCopy(url);
     });
   } else {
+    // Fallback to copy
     fallbackCopy(url);
   }
 }
@@ -123,6 +133,7 @@ function fallbackCopy(text) {
   textArea.value = text;
   textArea.style.position = "fixed";
   textArea.style.left = "-9999px";
+  textArea.style.top = "10px";
   document.body.appendChild(textArea);
   textArea.focus();
   textArea.select();
@@ -130,35 +141,40 @@ function fallbackCopy(text) {
   try {
     const successful = document.execCommand('copy');
     if (successful) {
-      showCopyFeedback('✅ Link copied to clipboard!');
+      showToast('✅ Link copied! Paste in WhatsApp', '#22c55e');
     } else {
-      showCopyFallback(text);
+      showToast(' Copy failed', '#ef4444');
     }
   } catch (err) {
-    console.error('Fallback copy failed:', err);
-    showCopyFallback(text);
+    showToast('❌ Copy failed', '#ef4444');
   }
   
   document.body.removeChild(textArea);
 }
 
-function showCopyFeedback(message) {
-  // Create a nice toast notification
+function showToast(message, color) {
+  // Remove existing toasts
+  const existing = document.querySelector('.toast-notification');
+  if (existing) existing.remove();
+  
   const toast = document.createElement('div');
+  toast.className = 'toast-notification';
   toast.textContent = message;
-  toast.style.cssText = 'position:fixed; top:20px; right:20px; background:#22c55e; color:#fff; padding:1rem 1.5rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10000; font-weight:600;';
+  toast.style.cssText = 'position:fixed; top:20px; right:20px; background:' + color + '; color:#fff; padding:1rem 1.5rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10000; font-weight:600; animation: slideIn 0.3s ease;';
+  
+  // Add animation
+  const style = document.createElement('style');
+  style.textContent = '@keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
+  document.head.appendChild(style);
+  
   document.body.appendChild(toast);
   
   setTimeout(function() {
     toast.style.opacity = '0';
     toast.style.transition = 'opacity 0.3s';
     setTimeout(function() {
-      document.body.removeChild(toast);
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 300);
-  }, 2000);
-}
-
-function showCopyFallback(url) {
-  const copied = prompt("Press Ctrl+C to copy this link:", url);
+  }, 3000);
 }
 </script>
