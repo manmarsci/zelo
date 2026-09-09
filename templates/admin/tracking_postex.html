@@ -10,35 +10,53 @@
   </div>
 </div>
 
-<div id="trackingResult" style="display:none; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
-  <h3 id="trackingNumberDisplay" style="margin-top:0; color:#8b7355; font-family:monospace;"></h3>
-  <div id="currentStatus" style="margin-bottom:1.5rem; padding:1rem; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:4px; font-weight:600; color:#166534;"></div>
+<!-- Dark Themed Tracking Card -->
+<div id="trackingResult" style="display:none; background:#121212; padding:2rem; border-radius:12px; color:#ffffff; max-width:600px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
   
-  <h4 style="margin-bottom:1rem; color:#1a1a1a;">Tracking History</h4>
-  <div id="timeline" style="position:relative; padding-left:20px; border-left:2px solid #e8e1d1; margin-top:1rem;"></div>
+  <h2 style="margin-top:0; color:#84cc16; font-size:1.2rem; letter-spacing:1px; font-weight:700; margin-bottom:2rem;">SHIPMENT STATUS</h2>
   
-  <details style="margin-top:2rem; border-top:1px solid #e8e1d1; padding-top:1rem;">
-    <summary style="cursor:pointer; color:#8b7355; font-size:0.9rem; font-weight:500;">View Raw API Response (For Debugging)</summary>
-    <pre id="rawResponse" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:0.8rem; overflow-x:auto; margin-top:0.5rem; color:#5f6b7a;"></pre>
+  <div id="timelineContainer" style="position:relative; padding-left: 10px;">
+    <!-- Timeline items will be injected here -->
+  </div>
+
+  <details style="margin-top:2rem; border-top:1px solid #333; padding-top:1rem;">
+    <summary style="cursor:pointer; color:#888; font-size:0.85rem;">View Raw API Response</summary>
+    <pre id="rawResponse" style="background:#1e1e1e; padding:1rem; border-radius:6px; font-size:0.75rem; overflow-x:auto; margin-top:0.5rem; color:#a1a1aa;"></pre>
   </details>
 </div>
 
 <script>
+// SVG Icons
+const ICONS = {
+  delivered: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+  truck: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>`,
+  box: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`
+};
+
+function getIcon(code, message) {
+  if (code === '0005' || message.toLowerCase().includes('delivered')) return ICONS.delivered;
+  if (code === '0004' || code === '0033' || message.toLowerCase().includes('route') || message.toLowerCase().includes('departed')) return ICONS.truck;
+  return ICONS.box; // Default to box for waiting/received
+}
+
+function formatDate(isoString) {
+  const date = new Date(isoString);
+  return date.toLocaleString('en-US', { 
+    month: 'short', day: 'numeric', year: 'numeric', 
+    hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true 
+  });
+}
+
 async function fetchTracking() {
   const trackingNumber = document.getElementById('trackingInput').value.trim();
-  if (!trackingNumber) {
-    alert('Please enter a tracking number');
-    return;
-  }
+  if (!trackingNumber) return alert('Please enter a tracking number');
 
   const resultDiv = document.getElementById('trackingResult');
-  const timelineDiv = document.getElementById('timeline');
+  const timelineDiv = document.getElementById('timelineContainer');
   const rawPre = document.getElementById('rawResponse');
   
   resultDiv.style.display = 'block';
-  timelineDiv.innerHTML = '<p class="muted">Fetching data from PostEx...</p>';
-  document.getElementById('trackingNumberDisplay').textContent = `Tracking: ${trackingNumber}`;
-  document.getElementById('currentStatus').textContent = 'Loading status...';
+  timelineDiv.innerHTML = '<p style="color:#888;">Fetching data...</p>';
 
   try {
     const response = await fetch('/admin/tracking/postex', {
@@ -50,57 +68,56 @@ async function fetchTracking() {
     const data = await response.json();
     rawPre.textContent = JSON.stringify(data, null, 2);
 
-    if (data.error) {
-      document.getElementById('currentStatus').innerHTML = `<span style="color:#c84b31;">❌ Error: ${data.error}</span>`;
-      timelineDiv.innerHTML = '';
+    if (data.error || data.statusCode !== "200") {
+      timelineDiv.innerHTML = `<p style="color:#ef4444;">Error: ${data.error || data.statusMessage}</p>`;
       return;
     }
 
-    // Adapt to PostEx response structure dynamically
-    const trackingData = data.data || data;
-    const status = trackingData.currentStatus || trackingData.status || trackingData.trackingStatus || 'Status Unavailable';
-    
-    document.getElementById('currentStatus').innerHTML = `Current Status: <span style="color:#166534;">${status}</span>`;
+    const history = data.dist.transactionStatusHistory || [];
+    timelineDiv.innerHTML = '';
 
-    // Look for events/history in various possible key names
-    const events = trackingData.events || trackingData.history || trackingData.trackingHistory || trackingData.tracking || [];
-    
-    if (events.length > 0) {
-      timelineDiv.innerHTML = '';
-      events.forEach((event, index) => {
-        const date = event.date || event.datetime || event.timestamp || event.createdAt || 'Unknown Date';
-        const location = event.location || event.city || event.facility || '';
-        const description = event.description || event.status || event.remarks || event.activity || 'No description';
-        
-        const isLatest = index === 0;
-        const dotColor = isLatest ? '#22c55e' : '#d8d2c4';
-        const textColor = isLatest ? '#166534' : '#5f6b7a';
-        const fontWeight = isLatest ? '600' : '400';
+    history.forEach((event, index) => {
+      const isLatest = index === 0;
+      const icon = getIcon(event.transactionStatusMessageCode, event.transactionStatusMessage);
+      const dateStr = formatDate(event.modifiedDatetime);
+      
+      // Colors based on status
+      const isDelivered = event.transactionStatusMessageCode === '0005';
+      const textColor = isDelivered ? '#84cc16' : '#ffffff';
+      const circleBg = isDelivered ? '#84cc16' : '#ffffff';
+      const circleText = isDelivered ? '#121212' : '#121212';
 
-        const item = document.createElement('div');
-        item.style.cssText = `margin-bottom:1.5rem; position:relative;`;
-        item.innerHTML = `
-          <div style="position:absolute; left:-26px; top:4px; width:12px; height:12px; border-radius:50%; background:${dotColor}; border:3px solid #fff; box-shadow: 0 0 0 1px ${dotColor};"></div>
-          <div style="font-size:0.85rem; color:#8b7355; margin-bottom:0.25rem; font-weight:500;">${date} ${location ? '• ' + location : ''}</div>
-          <div style="color:${textColor}; font-weight:${fontWeight}; font-size:1rem;">${description}</div>
-        `;
-        timelineDiv.appendChild(item);
-      });
-    } else {
-      timelineDiv.innerHTML = '<p class="muted">No detailed tracking events found in the API response. Check the raw response below.</p>';
-    }
+      const item = document.createElement('div');
+      item.style.cssText = `display:flex; gap:1.5rem; margin-bottom:2.5rem; position:relative;`;
+      
+      // Draw connecting line (except for the last item)
+      if (index < history.length - 1) {
+        const line = document.createElement('div');
+        line.style.cssText = `position:absolute; left:24px; top:50px; bottom:-40px; width:1px; background:#3f3f46; z-index:0;`;
+        item.appendChild(line);
+      }
+
+      item.innerHTML += `
+        <div style="width:48px; height:48px; border-radius:50%; background:${circleBg}; color:${circleText}; display:flex; align-items:center; justify-content:center; flex-shrink:0; z-index:1; box-shadow: 0 0 0 4px #121212;">
+          ${icon}
+        </div>
+        <div style="padding-top:4px;">
+          <div style="font-size:1.25rem; font-weight:700; color:${textColor}; margin-bottom:0.25rem;">${event.transactionStatusMessage}</div>
+          <div style="font-size:0.9rem; color:#a1a1aa;">${dateStr}</div>
+        </div>
+      `;
+      timelineDiv.appendChild(item);
+    });
 
   } catch (err) {
-    document.getElementById('currentStatus').innerHTML = `<span style="color:#c84b31;">❌ Network Error: ${err.message}</span>`;
-    timelineDiv.innerHTML = '';
+    timelineDiv.innerHTML = `<p style="color:#ef4444;">Network Error: ${err.message}</p>`;
   }
 }
 
-// Auto-fill if URL has ?tracking=NUMBER
+// Auto-fill from URL
 const urlParams = new URLSearchParams(window.location.search);
-const prefill = urlParams.get('tracking');
-if (prefill) {
-  document.getElementById('trackingInput').value = prefill;
+if (urlParams.get('tracking')) {
+  document.getElementById('trackingInput').value = urlParams.get('tracking');
   fetchTracking();
 }
 </script>
