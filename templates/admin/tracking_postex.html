@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>PostEx Live Tracking</h1>
+<p class="muted">Enter a PostEx tracking number to see the real-time delivery timeline.</p>
+
+<div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; max-width:600px; margin-bottom:2rem;">
+  <div style="display:flex; gap:1rem;">
+    <input type="text" id="trackingInput" placeholder="e.g. 08640-01-090058722" style="flex:1; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:monospace; font-size:1.1rem;" />
+    <button onclick="fetchTracking()" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">Track Now</button>
+  </div>
+</div>
+
+<div id="trackingResult" style="display:none; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1;">
+  <h3 id="trackingNumberDisplay" style="margin-top:0; color:#8b7355; font-family:monospace;"></h3>
+  <div id="currentStatus" style="margin-bottom:1.5rem; padding:1rem; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:4px; font-weight:600; color:#166534;"></div>
+  
+  <h4 style="margin-bottom:1rem; color:#1a1a1a;">Tracking History</h4>
+  <div id="timeline" style="position:relative; padding-left:20px; border-left:2px solid #e8e1d1; margin-top:1rem;"></div>
+  
+  <details style="margin-top:2rem; border-top:1px solid #e8e1d1; padding-top:1rem;">
+    <summary style="cursor:pointer; color:#8b7355; font-size:0.9rem; font-weight:500;">View Raw API Response (For Debugging)</summary>
+    <pre id="rawResponse" style="background:#f9f9f9; padding:1rem; border-radius:6px; font-size:0.8rem; overflow-x:auto; margin-top:0.5rem; color:#5f6b7a;"></pre>
+  </details>
+</div>
+
+<script>
+async function fetchTracking() {
+  const trackingNumber = document.getElementById('trackingInput').value.trim();
+  if (!trackingNumber) {
+    alert('Please enter a tracking number');
+    return;
+  }
+
+  const resultDiv = document.getElementById('trackingResult');
+  const timelineDiv = document.getElementById('timeline');
+  const rawPre = document.getElementById('rawResponse');
+  
+  resultDiv.style.display = 'block';
+  timelineDiv.innerHTML = '<p class="muted">Fetching data from PostEx...</p>';
+  document.getElementById('trackingNumberDisplay').textContent = `Tracking: ${trackingNumber}`;
+  document.getElementById('currentStatus').textContent = 'Loading status...';
+
+  try {
+    const response = await fetch('/admin/tracking/postex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackingNumber: trackingNumber })
+    });
+    
+    const data = await response.json();
+    rawPre.textContent = JSON.stringify(data, null, 2);
+
+    if (data.error) {
+      document.getElementById('currentStatus').innerHTML = `<span style="color:#c84b31;">❌ Error: ${data.error}</span>`;
+      timelineDiv.innerHTML = '';
+      return;
+    }
+
+    // Adapt to PostEx response structure dynamically
+    const trackingData = data.data || data;
+    const status = trackingData.currentStatus || trackingData.status || trackingData.trackingStatus || 'Status Unavailable';
+    
+    document.getElementById('currentStatus').innerHTML = `Current Status: <span style="color:#166534;">${status}</span>`;
+
+    // Look for events/history in various possible key names
+    const events = trackingData.events || trackingData.history || trackingData.trackingHistory || trackingData.tracking || [];
+    
+    if (events.length > 0) {
+      timelineDiv.innerHTML = '';
+      events.forEach((event, index) => {
+        const date = event.date || event.datetime || event.timestamp || event.createdAt || 'Unknown Date';
+        const location = event.location || event.city || event.facility || '';
+        const description = event.description || event.status || event.remarks || event.activity || 'No description';
+        
+        const isLatest = index === 0;
+        const dotColor = isLatest ? '#22c55e' : '#d8d2c4';
+        const textColor = isLatest ? '#166534' : '#5f6b7a';
+        const fontWeight = isLatest ? '600' : '400';
+
+        const item = document.createElement('div');
+        item.style.cssText = `margin-bottom:1.5rem; position:relative;`;
+        item.innerHTML = `
+          <div style="position:absolute; left:-26px; top:4px; width:12px; height:12px; border-radius:50%; background:${dotColor}; border:3px solid #fff; box-shadow: 0 0 0 1px ${dotColor};"></div>
+          <div style="font-size:0.85rem; color:#8b7355; margin-bottom:0.25rem; font-weight:500;">${date} ${location ? '• ' + location : ''}</div>
+          <div style="color:${textColor}; font-weight:${fontWeight}; font-size:1rem;">${description}</div>
+        `;
+        timelineDiv.appendChild(item);
+      });
+    } else {
+      timelineDiv.innerHTML = '<p class="muted">No detailed tracking events found in the API response. Check the raw response below.</p>';
+    }
+
+  } catch (err) {
+    document.getElementById('currentStatus').innerHTML = `<span style="color:#c84b31;">❌ Network Error: ${err.message}</span>`;
+    timelineDiv.innerHTML = '';
+  }
+}
+
+// Auto-fill if URL has ?tracking=NUMBER
+const urlParams = new URLSearchParams(window.location.search);
+const prefill = urlParams.get('tracking');
+if (prefill) {
+  document.getElementById('trackingInput').value = prefill;
+  fetchTracking();
+}
+</script>
+{% endblock %}

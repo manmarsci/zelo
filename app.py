@@ -1484,5 +1484,38 @@ Rules:
         print(f"Vision API Error: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# ---------- Admin: PostEx Tracking ----------
+@app.route("/admin/tracking/postex", methods=["POST"])
+@admin_required
+def admin_postex_tracking():
+    tracking_number = request.json.get("trackingNumber")
+    if not tracking_number:
+        return jsonify({"error": "Tracking number is required"}), 400
+        
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": "https://postex.pk",
+            "Referer": "https://postex.pk/tracking",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+        }
+        payload = {"trackingNumber": tracking_number}
+        
+        response = requests.post(
+            "https://postex.pk/api/tracking-order",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"error": f"PostEx API returned status {response.status_code}"}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 def handler(request):
     return app(request.environ, lambda *args: None)

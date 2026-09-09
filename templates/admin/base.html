@@ -18,6 +18,8 @@
       <!-- NEW LINKS -->
       <a href="{{ url_for('admin_map') }}" class="{{ 'active' if request.endpoint=='admin_map' }}">🗺️ Customer Map</a>
       <a href="{{ url_for('admin_courier_scanner') }}" class="{{ 'active' if 'courier' in request.endpoint }}">📠 Courier Scanner</a>
+      <a href="{{ url_for('admin_map') }}" class="{{ 'active' if request.endpoint=='admin_map' }}">🗺️ Customer Map</a>
+      <a href="/admin/tracking/postex" class="{{ 'active' if request.path=='/admin/tracking/postex' }}">🚚 PostEx Tracking</a>
       <hr/>
       <a href="{{ url_for('index') }}" target="_blank">🌐 View Store</a>
       <a href="{{ url_for('logout') }}">↩ Logout</a>
