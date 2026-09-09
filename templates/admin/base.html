@@ -18,7 +18,6 @@
       <!-- NEW LINKS -->
       <a href="{{ url_for('admin_map') }}" class="{{ 'active' if request.endpoint=='admin_map' }}">🗺️ Customer Map</a>
       <a href="{{ url_for('admin_courier_scanner') }}" class="{{ 'active' if 'courier' in request.endpoint }}">📠 Courier Scanner</a>
-      <a href="{{ url_for('admin_map') }}" class="{{ 'active' if request.endpoint=='admin_map' }}">🗺️ Customer Map</a>
       <a href="/admin/tracking/postex" class="{{ 'active' if request.path=='/admin/tracking/postex' }}">🚚 PostEx Tracking</a>
       <hr/>
       <a href="{{ url_for('index') }}" target="_blank">🌐 View Store</a>
@@ -36,15 +35,18 @@
     {% block content %}{% endblock %}
   </main>
 
+
+
+
 <!-- Quick Track Modal -->
 <div id="quickTrackModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
-  <div style="background:#fff; padding:2rem; border-radius:12px; max-width:700px; width:90%; max-height:90vh; overflow-y:auto;">
+  <div style="background:#121212; padding:2rem; border-radius:12px; max-width:700px; width:90%; max-height:90vh; overflow-y:auto; color:#fff;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-      <h2 style="margin:0; color:#1a1a1a;">Track Shipment</h2>
-      <button onclick="closeQuickTrack()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#8b7355;">&times;</button>
+      <h2 style="margin:0; color:#84cc16; font-size:1.2rem;">🚚 Track Shipment</h2>
+      <button onclick="closeQuickTrack()" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#888; line-height:1;">&times;</button>
     </div>
     <div id="quickTrackContent">
-      <p class="muted">Loading tracking information...</p>
+      <p style="color:#888;">Loading tracking information...</p>
     </div>
   </div>
 </div>
@@ -59,28 +61,51 @@ function quickTrack(trackingNumber) {
   const modal = document.getElementById('quickTrackModal');
   const content = document.getElementById('quickTrackContent');
   modal.style.display = 'flex';
-  content.innerHTML = '<p class="muted">Fetching tracking data for ' + trackingNumber + '...</p>';
+  content.innerHTML = '<p style="color:#888;">🔄 Fetching tracking data for <strong style="color:#fff;">' + trackingNumber + '</strong>...</p>';
   
-  // Load the tracking page content via fetch
-  fetch('/admin/tracking/postex?tracking=' + trackingNumber)
-    .then(r => r.text())
-    .then(html => {
-      // Extract just the tracking result div from the response
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const trackingResult = doc.querySelector('#trackingResult');
-      if (trackingResult) {
-        content.innerHTML = trackingResult.outerHTML;
-        // Re-run the tracking fetch since it was triggered by URL param
-        const script = doc.querySelector('script');
-        if (script) eval(script.textContent);
-      } else {
-        content.innerHTML = '<p class="muted">Could not load tracking. <a href="/admin/tracking/postex?tracking=' + trackingNumber + '" target="_blank">Open in new tab</a></p>';
+  // Call our PostEx tracking API directly
+  fetch('/admin/tracking/postex', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trackingNumber: trackingNumber })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error || data.statusCode !== "200") {
+      content.innerHTML = '<p style="color:#ef4444;">❌ Error: ' + (data.error || data.statusMessage) + '</p>';
+      return;
+    }
+    
+    const history = data.dist.transactionStatusHistory || [];
+    let html = '<div style="position:relative; padding-left:10px;">';
+    
+    history.forEach((event, index) => {
+      const isLatest = index === 0;
+      const isDelivered = event.transactionStatusMessageCode === '0005';
+      const date = new Date(event.modifiedDatetime).toLocaleString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', 
+        hour: 'numeric', minute: '2-digit', hour12: true 
+      });
+      
+      const bgColor = isDelivered ? '#84cc16' : '#fff';
+      const textColor = isDelivered ? '#121212' : '#121212';
+      const statusColor = isDelivered ? '#84cc16' : '#fff';
+      
+      html += '<div style="display:flex; gap:1rem; margin-bottom:2rem; position:relative;">';
+      if (index < history.length - 1) {
+        html += '<div style="position:absolute; left:24px; top:40px; bottom:-30px; width:1px; background:#3f3f46;"></div>';
       }
-    })
-    .catch(err => {
-      content.innerHTML = '<p style="color:#c84b31;">Error loading tracking: ' + err.message + '</p>';
+      html += '<div style="width:48px; height:48px; border-radius:50%; background:' + bgColor + '; color:' + textColor + '; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:bold; box-shadow: 0 0 0 4px #121212;">' + (isDelivered ? '✓' : (event.transactionStatusMessageCode === '0004' || event.transactionStatusMessageCode === '0033' ? '🚚' : '📦')) + '</div>';
+      html += '<div><div style="font-size:1.1rem; font-weight:700; color:' + statusColor + '; margin-bottom:0.25rem;">' + event.transactionStatusMessage + '</div>';
+      html += '<div style="font-size:0.85rem; color:#a1a1aa;">' + date + '</div></div></div>';
     });
+    
+    html += '</div>';
+    content.innerHTML = html;
+  })
+  .catch(err => {
+    content.innerHTML = '<p style="color:#ef4444;">❌ Network Error: ' + err.message + '</p>';
+  });
 }
 
 function closeQuickTrack() {
@@ -88,7 +113,7 @@ function closeQuickTrack() {
 }
 
 // Close modal on outside click
-document.getElementById('quickTrackModal')?.addEventListener('click', function(e) {
+document.getElementById('quickTrackModal').addEventListener('click', function(e) {
   if (e.target === this) closeQuickTrack();
 });
 </script>
