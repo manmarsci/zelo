@@ -35,5 +35,63 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+
+<!-- Quick Track Modal -->
+<div id="quickTrackModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:2rem; border-radius:12px; max-width:700px; width:90%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <h2 style="margin:0; color:#1a1a1a;">Track Shipment</h2>
+      <button onclick="closeQuickTrack()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#8b7355;">&times;</button>
+    </div>
+    <div id="quickTrackContent">
+      <p class="muted">Loading tracking information...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function quickTrack(trackingNumber) {
+  if (!trackingNumber) {
+    alert('No tracking number available');
+    return;
+  }
+  
+  const modal = document.getElementById('quickTrackModal');
+  const content = document.getElementById('quickTrackContent');
+  modal.style.display = 'flex';
+  content.innerHTML = '<p class="muted">Fetching tracking data for ' + trackingNumber + '...</p>';
+  
+  // Load the tracking page content via fetch
+  fetch('/admin/tracking/postex?tracking=' + trackingNumber)
+    .then(r => r.text())
+    .then(html => {
+      // Extract just the tracking result div from the response
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const trackingResult = doc.querySelector('#trackingResult');
+      if (trackingResult) {
+        content.innerHTML = trackingResult.outerHTML;
+        // Re-run the tracking fetch since it was triggered by URL param
+        const script = doc.querySelector('script');
+        if (script) eval(script.textContent);
+      } else {
+        content.innerHTML = '<p class="muted">Could not load tracking. <a href="/admin/tracking/postex?tracking=' + trackingNumber + '" target="_blank">Open in new tab</a></p>';
+      }
+    })
+    .catch(err => {
+      content.innerHTML = '<p style="color:#c84b31;">Error loading tracking: ' + err.message + '</p>';
+    });
+}
+
+function closeQuickTrack() {
+  document.getElementById('quickTrackModal').style.display = 'none';
+}
+
+// Close modal on outside click
+document.getElementById('quickTrackModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeQuickTrack();
+});
+</script>
+
 </body>
 </html>

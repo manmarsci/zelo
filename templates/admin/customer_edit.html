@@ -71,6 +71,7 @@
           <th>Description</th>
           <th>Charges</th>
           <th>System Added</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -83,6 +84,9 @@
             <td>{{ slip.description or '-' }}</td>
             <td>{{ slip.charges or '-' }}</td>
             <td class="muted small">{{ slip.created_at }}</td>
+            <td>
+              <button type="button" onclick="quickTrack('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.75rem; font-size:0.85rem;">🚚 Track</button>
+            </td>
           </tr>
         {% endfor %}
       </tbody>
