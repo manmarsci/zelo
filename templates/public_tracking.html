@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Your Order - ZELO LIVE BOUTIQUE</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0a0a0a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #222; margin-bottom: 20px; }
+        .header h1 { margin: 0; color: #84cc16; font-size: 1.2rem; letter-spacing: 2px; }
+        .header p { margin: 5px 0 0; color: #888; font-size: 0.9rem; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
+        .search-box input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 1rem; }
+        .search-box button { padding: 12px 20px; border-radius: 8px; border: none; background: #84cc16; color: #000; font-weight: bold; cursor: pointer; }
+        .timeline { position: relative; padding-left: 10px; }
+        .timeline-item { display: flex; gap: 1rem; margin-bottom: 2rem; position: relative; }
+        .timeline-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.2rem; box-shadow: 0 0 0 4px #0a0a0a; z-index: 1; }
+        .timeline-line { position: absolute; left: 24px; top: 40px; bottom: -30px; width: 1px; background: #333; z-index: 0; }
+        .status-text { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .date-text { font-size: 0.85rem; color: #a1a1aa; }
+        .error { color: #ef4444; text-align: center; padding: 20px; }
+        .footer { text-align: center; padding: 30px 0; color: #555; font-size: 0.8rem; border-top: 1px solid #222; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ZELO LIVE BOUTIQUE</h1>
+            <p>Shipment Tracking</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="trackingInput" placeholder="Enter Tracking Number" />
+            <button onclick="fetchTracking()">Track</button>
+        </div>
+
+        <div id="timelineContainer"></div>
+
+        <div class="footer">
+            Powered by ZELO LIVE BOUTIQUE & PostEx
+        </div>
+    </div>
+
+    <script>
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+
+        function getIcon(code, message) {
+            if (code === '0005' || message.toLowerCase().includes('delivered')) return '✅';
+            if (code === '0004' || code === '0033' || message.toLowerCase().includes('route') || message.toLowerCase().includes('departed')) return '🚚';
+            return '📦';
+        }
+
+        async function fetchTracking() {
+            const trackingNumber = document.getElementById('trackingInput').value.trim();
+            const container = document.getElementById('timelineContainer');
+            
+            if (!trackingNumber) {
+                container.innerHTML = '<p class="error">Please enter a tracking number</p>';
+                return;
+            }
+
+            container.innerHTML = '<p style="text-align:center; color:#888;">🔄 Fetching tracking data...</p>';
+
+            try {
+                const response = await fetch('/api/public-track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackingNumber: trackingNumber })
+                });
+                
+                const data = await response.json();
+
+                if (data.error || data.statusCode !== "200") {
+                    container.innerHTML = '<p class="error"> Tracking not found. Please check the number.</p>';
+                    return;
+                }
+
+                const history = data.dist.transactionStatusHistory || [];
+                let html = '<div class="timeline">';
+
+                history.forEach((event, index) => {
+                    const isDelivered = event.transactionStatusMessageCode === '0005';
+                    const bgColor = isDelivered ? '#84cc16' : '#fff';
+                    const textColor = '#000';
+                    const statusColor = isDelivered ? '#84cc16' : '#fff';
+                    const icon = getIcon(event.transactionStatusMessageCode, event.transactionStatusMessage);
+                    
+                    html += '<div class="timeline-item">';
+                    if (index < history.length - 1) html += '<div class="timeline-line"></div>';
+                    html += `<div class="timeline-icon" style="background:${bgColor}; color:${textColor};">${icon}</div>`;
+                    html += '<div>';
+                    html += `<div class="status-text" style="color:${statusColor};">${event.transactionStatusMessage}</div>`;
+                    html += `<div class="date-text">${formatDate(event.modifiedDatetime)}</div>`;
+                    html += '</div></div>';
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (err) {
+                container.innerHTML = '<p class="error">❌ Network Error. Please try again.</p>';
+            }
+        }
+
+        // Auto-load if URL has ?number=...
+        const urlParams = new URLSearchParams(window.location.search);
+        const num = urlParams.get('number') || urlParams.get('tracking');
+        if (num) {
+            document.getElementById('trackingInput').value = num;
+            fetchTracking();
+        }
+    </script>
+</body>
+</html>

@@ -85,7 +85,8 @@
             <td>{{ slip.charges or '-' }}</td>
             <td class="muted small">{{ slip.created_at }}</td>
             <td>
-              <button type="button" onclick="quickTrack('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.75rem; font-size:0.85rem;">🚚 Track</button>
+              <button type="button" onclick="quickTrack('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem; margin-right:5px;">🚚</button>
+              <button type="button" onclick="copyLink('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem;" title="Copy Customer Link"></button>
             </td>
           </tr>
         {% endfor %}

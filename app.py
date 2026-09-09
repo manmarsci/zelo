@@ -1521,5 +1521,41 @@ def admin_postex_tracking():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# ---------- Public Customer Tracking ----------
+@app.route("/track")
+def public_track_page():
+    return render_template("public_tracking.html")
+
+@app.route("/api/public-track", methods=["POST"])
+def public_track_api():
+    tracking_number = request.json.get("trackingNumber")
+    if not tracking_number:
+        return jsonify({"error": "Tracking number is required"}), 400
+        
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": "https://postex.pk",
+            "Referer": "https://postex.pk/tracking",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+        }
+        payload = {"trackingNumber": tracking_number}
+        
+        response = requests.post(
+            "https://postex.pk/api/tracking-order",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"error": f"PostEx API returned status {response.status_code}"}), response.status_code
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 def handler(request):
     return app(request.environ, lambda *args: None)
