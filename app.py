@@ -1561,5 +1561,27 @@ def public_track_api():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# ---------- Information Pages ----------
+@app.route("/faq")
+def faq():
+    return render_template("faq.html")
+
+@app.route("/shipping")
+def shipping():
+    return render_template("shipping.html")
+
+@app.route("/returns")
+def returns():
+    return render_template("returns.html")
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+@app.route("/terms")
+def terms():
+    return render_template("terms.html")
+
 def handler(request):
     return app(request.environ, lambda *args: None)
