@@ -86,7 +86,7 @@
             <td class="muted small">{{ slip.created_at }}</td>
             <td>
               <button type="button" onclick="quickTrack('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem; margin-right:5px;">🚚</button>
-              <button type="button" onclick="copyLink('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem;" title="Copy Customer Link"></button>
+              <button type="button" onclick="shareTrackingLink('{{ slip.tracking_number }}', '{{ slip.customer_name }}')" class="btn" style="padding:0.4rem 0.8rem; font-size:0.9rem; background:#2563eb; color:#fff; border:1px solid #2563eb; border-radius:4px; cursor:pointer;" title="Share with Customer">📤 Share</button>
             </td>
           </tr>
         {% endfor %}
@@ -103,78 +103,4 @@
 
 
 
-<script>
-function shareTrackingLink(trackingNumber, customerName) {
-  const baseUrl = window.location.origin || 'https://zelo-theta-murex.vercel.app';
-  const url = baseUrl + '/track?number=' + trackingNumber;
-  const message = 'Hi ' + customerName + '! Track your order here: ' + url;
-  
-  // Try Web Share API first (works on mobile)
-  if (navigator.share) {
-    navigator.share({
-      title: 'Track Your Order',
-      text: 'Track your ZELO order #' + trackingNumber,
-      url: url
-    }).then(function() {
-      showToast('✅ Shared successfully!', '#22c55e');
-    }).catch(function(err) {
-      console.log('Share cancelled or failed:', err);
-      fallbackCopy(url);
-    });
-  } else {
-    // Fallback to copy
-    fallbackCopy(url);
-  }
-}
 
-function fallbackCopy(text) {
-  // Create temporary textarea
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.top = "10px";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  
-  try {
-    const successful = document.execCommand('copy');
-    if (successful) {
-      showToast('✅ Link copied! Paste in WhatsApp', '#22c55e');
-    } else {
-      showToast(' Copy failed', '#ef4444');
-    }
-  } catch (err) {
-    showToast('❌ Copy failed', '#ef4444');
-  }
-  
-  document.body.removeChild(textArea);
-}
-
-function showToast(message, color) {
-  // Remove existing toasts
-  const existing = document.querySelector('.toast-notification');
-  if (existing) existing.remove();
-  
-  const toast = document.createElement('div');
-  toast.className = 'toast-notification';
-  toast.textContent = message;
-  toast.style.cssText = 'position:fixed; top:20px; right:20px; background:' + color + '; color:#fff; padding:1rem 1.5rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10000; font-weight:600; animation: slideIn 0.3s ease;';
-  
-  // Add animation
-  const style = document.createElement('style');
-  style.textContent = '@keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
-  document.head.appendChild(style);
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(function() {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s';
-    setTimeout(function() {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 300);
-  }, 3000);
-}
-</script>

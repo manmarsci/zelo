@@ -1202,7 +1202,11 @@ def admin_map():
     # Convert to JSON for JavaScript
     map_data = json.dumps([{"city": k, "count": v} for k, v in merged.items()])
     
-    return render_template("admin/map.html", map_data=map_data)
+    # Prepare list and max count for the HTML table density bars
+    map_data_list = [{"city": k, "count": v} for k, v in sorted(merged.items(), key=lambda x: x[1], reverse=True)]
+    max_count = max(merged.values()) if merged else 1
+    
+    return render_template("admin/map.html", map_data=map_data, map_data_list=map_data_list, max_count=max_count)
 
 
 # ---------- Admin: Courier Scanner (GET) ----------

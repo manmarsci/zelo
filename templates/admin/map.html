@@ -2,8 +2,36 @@
 {% block content %}
 <h1>Customer Location Map</h1>
 
-<div style="background:#fff; border-radius:8px; border:1px solid #e8e1d1; overflow:hidden; margin-top:1.5rem;">
-  <div id="pakistanMap" style="height: 600px; width: 100%;"></div>
+<!-- Map Container -->
+<div style="background:#fff; border-radius:8px; border:1px solid #e8e1d1; overflow:hidden; margin-bottom:2rem;">
+  <div id="pakistanMap" style="height: 500px; width: 100%;"></div>
+</div>
+
+<!-- Data Table -->
+<div style="background:#fff; border-radius:8px; border:1px solid #e8e1d1; padding:1.5rem;">
+  <h3 style="margin-top:0; margin-bottom:1rem; color:#8b7355;">Orders by City</h3>
+  <table class="admin-table" style="width:100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:10px; border-bottom:2px solid #e8e1d1;">City</th>
+        <th style="text-align:right; padding:10px; border-bottom:2px solid #e8e1d1;">Total Orders / Slips</th>
+        <th style="text-align:left; padding:10px; border-bottom:2px solid #e8e1d1;">Density</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in map_data_list %}
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #f0f0f0; font-weight:600;">{{ item.city }}</td>
+        <td style="padding:10px; border-bottom:1px solid #f0f0f0; text-align:right; font-weight:600; color:#c9a961;">{{ item.count }}</td>
+        <td style="padding:10px; border-bottom:1px solid #f0f0f0;">
+          <div style="background:#f0f0f0; border-radius:4px; height:8px; width:100px; overflow:hidden;">
+            <div style="background:#c9a961; height:100%; width:{{ (item.count / max_count * 100) if max_count > 0 else 0 }}%;"></div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 <!-- Leaflet CSS & JS -->
@@ -11,14 +39,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  // 1. Initialize Map centered on Pakistan
   const map = L.map('pakistanMap').setView([30.3753, 69.3451], 5);
-  
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  // 2. Coordinates for major Pakistani cities
   const cityCoords = {
     "Lahore": [31.5204, 74.3587], "Karachi": [24.8607, 67.0011],
     "Islamabad": [33.6844, 73.0479], "Rawalpindi": [33.5651, 73.0169],
@@ -67,15 +92,12 @@
     "Kharian": [32.8167, 73.8833], "Pind Dadan Khan": [32.5833, 73.0500]
   };
 
-  // 3. Data passed from Python (Orders + Courier Slips combined)
   const mapData = {{ map_data | safe }};
 
-  // 4. Plot markers
   mapData.forEach(data => {
-    const cityName = data.city; // Already title-cased in Python
+    const cityName = data.city;
     if (cityCoords[cityName]) {
       const coords = cityCoords[cityName];
-      // Calculate radius: minimum 8px, maximum 30px based on count
       const radius = Math.min(8 + (data.count * 3), 30); 
       
       const marker = L.circleMarker(coords, {
@@ -87,8 +109,25 @@
         fillOpacity: 0.7
       }).addTo(map);
       
-      marker.bindPopup(`<b>${cityName}</b><br/>${data.count} orders/slips`);
+      // Interactive Tooltip on Hover
+      marker.bindTooltip(`<b>${cityName}</b><br/>${data.count} orders/slips`, {
+        permanent: false, 
+        direction: 'top',
+        className: 'custom-tooltip'
+      });
     }
   });
 </script>
+<style>
+  .custom-tooltip {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .custom-tooltip::before { border-top-color: #1a1a1a; }
+</style>
 {% endblock %}
