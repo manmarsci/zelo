@@ -1486,9 +1486,12 @@ Rules:
 
 
 # ---------- Admin: PostEx Tracking ----------
-@app.route("/admin/tracking/postex", methods=["POST"])
+@app.route("/admin/tracking/postex", methods=["GET", "POST"])
 @admin_required
 def admin_postex_tracking():
+    if request.method == "GET":
+        return render_template("admin/tracking_postex.html")
+        
     tracking_number = request.json.get("trackingNumber")
     if not tracking_number:
         return jsonify({"error": "Tracking number is required"}), 400
