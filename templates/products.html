@@ -1,83 +1,124 @@
 {% extends "base.html" %}
-{% block title %}Shop{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="container">
-    <div class="catalog-head">
-      <h1>{{ "Sale" if current_sort == "discount" else "All Products" }}</h1>
-      <div class="catalog-meta">
-        <form class="sort-form" method="get">
-          {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
-          {% if current_brand %}<input type="hidden" name="brand" value="{{ current_brand }}">{% endif %}
-          {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
-          <label>Sort:</label>
-          <select name="sort" onchange="this.form.submit()">
-            <option value="newest" {{ 'selected' if current_sort=='newest' }}>Newest</option>
-            <option value="price_low" {{ 'selected' if current_sort=='price_low' }}>Price: Low to High</option>
-            <option value="price_high" {{ 'selected' if current_sort=='price_high' }}>Price: High to Low</option>
-            <option value="popular" {{ 'selected' if current_sort=='popular' }}>Most Popular</option>
-            <option value="bestselling" {{ 'selected' if current_sort=='bestselling' }}>Best Selling</option>
-            <option value="discount" {{ 'selected' if current_sort=='discount' }}>Biggest Discount</option>
-          </select>
-        </form>
-      </div>
-    </div>
+<div style="max-width:1200px; margin:0 auto; padding:2rem;">
+    <h1 style="text-align:center; color:#1a1a1a; margin-bottom:2rem;">{{ 'Search Results' if search else ('Category: ' + current_category.title() if current_category else 'Brand: ' + current_brand.title() if current_brand else 'Shop All') }}</h1>
     
-    <div class="catalog-layout">
-      <!-- Filters -->
-      <aside class="filters">
-        <form method="get">
-          {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
-          {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
-
-          <div class="filter-group">
-            <h4>Category</h4>
-            <label><input type="radio" name="category" value="" {{ '' if current_category else 'checked' }} onchange="this.form.submit()"> All</label>
+    <!-- Mobile Filter Toggle Button -->
+    <button class="mobile-filter-toggle" onclick="toggleFilters()" style="display:none;">🔍 Show Filters</button>
+    
+    <div style="display:grid; grid-template-columns: 250px 1fr; gap:2rem;">
+        <!-- Filters Sidebar -->
+        <div class="filters-wrapper" id="filtersWrapper" style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; height:fit-content;">
+            <h3 style="margin-top:0; color:#1a1a1a; font-size:1.2rem; margin-bottom:1rem;">Filters</h3>
             
-            <!-- Only show these 3 categories -->
-            {% set allowed_cats = ['unstitched', 'patches', 'laces'] %}
-            {% for c in categories %}
-              {% if c.slug in allowed_cats %}
-                <label><input type="radio" name="category" value="{{ c.slug }}" {{ 'checked' if current_category==c.slug }} onchange="this.form.submit()"> {{ c.name }}</label>
-              {% endif %}
-            {% endfor %}
-          </div>
-
-          <div class="filter-group">
-            <h4>Brand</h4>
-            <label><input type="radio" name="brand" value="" {{ '' if current_brand else 'checked' }} onchange="this.form.submit()"> All</label>
-            {% for b in brands %}
-              <label><input type="radio" name="brand" value="{{ b.slug }}" {{ 'checked' if current_brand==b.slug }} onchange="this.form.submit()"> {{ b.name }}</label>
-            {% endfor %}
-          </div>
-
-          <div class="filter-group">
-            <h4>Availability</h4>
-            <label><input type="checkbox" name="avail" value="in_stock" {{ 'checked' if request.args.get('avail')=='in_stock' }} onchange="this.form.submit()"> In stock only</label>
-          </div>
-
-          <div class="filter-group">
-            <h4>Max Price (PKR)</h4>
-            <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="e.g. 5000" onchange="this.form.submit()" />
-          </div>
-
-          <button type="button" class="btn-link" onclick="window.location='{{ url_for('products') }}'">Clear filters</button>
-        </form>
-      </aside>
-
-      <!-- Grid -->
-      <div class="catalog-main">
-        {% if products %}
-          <div class="product-grid">
-            {% for p in products %}
-              {% include "_product_card.html" %}
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="empty">No products found. Try adjusting your filters.</p>
-        {% endif %}
-      </div>
+            <form method="get" action="/products">
+                <!-- Category Filter -->
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:0.5rem; color:#1a1a1a;">Category</label>
+                    <select name="category" style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:0.95rem;">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.slug }}" {{ 'selected' if current_category == cat.slug }}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Brand Filter -->
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:0.5rem; color:#1a1a1a;">Brand</label>
+                    <select name="brand" style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:0.95rem;">
+                        <option value="">All Brands</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.slug }}" {{ 'selected' if current_brand == brand.slug }}>{{ brand.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Sort Filter -->
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:0.5rem; color:#1a1a1a;">Sort By</label>
+                    <select name="sort" style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:0.95rem;">
+                        <option value="newest" {{ 'selected' if current_sort == 'newest' }}>Newest First</option>
+                        <option value="price_low" {{ 'selected' if current_sort == 'price_low' }}>Price: Low to High</option>
+                        <option value="price_high" {{ 'selected' if current_sort == 'price_high' }}>Price: High to Low</option>
+                        <option value="popular" {{ 'selected' if current_sort == 'popular' }}>Most Popular</option>
+                        <option value="bestselling" {{ 'selected' if current_sort == 'bestselling' }}>Best Selling</option>
+                        <option value="discount" {{ 'selected' if current_sort == 'discount' }}>Biggest Discount</option>
+                    </select>
+                </div>
+                
+                <!-- Search -->
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:0.5rem; color:#1a1a1a;">Search</label>
+                    <input type="text" name="q" value="{{ search }}" placeholder="Search products..." style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:0.95rem;">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:0.75rem;">Apply Filters</button>
+            </form>
+        </div>
+        
+        <!-- Products Grid -->
+        <div>
+            {% if products %}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:1.5rem;">
+                {% for p in products %}
+                <div style="background:#fff; border-radius:8px; overflow:hidden; border:1px solid #e8e1d1; transition:transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <a href="/product/{{ p.slug }}" style="text-decoration:none; color:inherit;">
+                        {% if p.image %}
+                        <img src="{{ p.image }}" alt="{{ p.name }}" style="width:100%; height:300px; object-fit:cover;">
+                        {% else %}
+                        <div style="width:100%; height:300px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999;">No Image</div>
+                        {% endif %}
+                        <div style="padding:1rem;">
+                            <h3 style="margin:0 0 0.5rem 0; font-size:1rem; color:#1a1a1a;">{{ p.name }}</h3>
+                            {% if p.brand_name %}
+                            <p style="margin:0 0 0.5rem 0; font-size:0.85rem; color:#888;">{{ p.brand_name }}</p>
+                            {% endif %}
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                {% if p.sale_price %}
+                                <span style="font-size:1.1rem; font-weight:700; color:#c9a961;">PKR {{ "%.0f"|format(p.sale_price) }}</span>
+                                <span style="font-size:0.9rem; color:#999; text-decoration:line-through;">PKR {{ "%.0f"|format(p.original_price) }}</span>
+                                {% else %}
+                                <span style="font-size:1.1rem; font-weight:700; color:#1a1a1a;">PKR {{ "%.0f"|format(p.original_price) }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align:center; padding:3rem; color:#888;">
+                <p style="font-size:1.2rem;">No products found.</p>
+                <a href="/products" class="btn btn-primary" style="margin-top:1rem;">View All Products</a>
+            </div>
+            {% endif %}
+        </div>
     </div>
-  </div>
-</section>
+</div>
+
+<script>
+function toggleFilters() {
+    const wrapper = document.getElementById('filtersWrapper');
+    const btn = document.querySelector('.mobile-filter-toggle');
+    wrapper.classList.toggle('show');
+    btn.textContent = wrapper.classList.contains('show') ? ' Hide Filters' : '🔍 Show Filters';
+}
+
+// Show/hide filter toggle based on screen size
+function checkScreenSize() {
+    const btn = document.querySelector('.mobile-filter-toggle');
+    const wrapper = document.getElementById('filtersWrapper');
+    if (window.innerWidth <= 768) {
+        btn.style.display = 'block';
+        wrapper.classList.remove('show');
+    } else {
+        btn.style.display = 'none';
+        wrapper.classList.add('show');
+    }
+}
+
+window.addEventListener('resize', checkScreenSize);
+checkScreenSize();
+</script>
 {% endblock %}
