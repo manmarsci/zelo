@@ -78,6 +78,62 @@
 }
 </style>
 
+
+<style>
+/* Mobile Menu Button */
+.mobile-menu-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: #1a1a1a; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; }
+
+@media (max-width: 768px) {
+    /* Sidebar Drawer - Wide enough for text */
+    .admin-sidebar, nav.sidebar, aside, .sidebar {
+        position: fixed !important;
+        left: -280px !important;
+        top: 0 !important;
+        height: 100vh !important;
+        transition: left 0.3s ease !important;
+        z-index: 1000 !important;
+        width: 260px !important; 
+        box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        overflow-y: auto !important;
+        background: #1a1a1a !important; /* Ensure dark background */
+    }
+    .admin-sidebar.open, nav.sidebar.open, aside.open, .sidebar.open { left: 0 !important; }
+
+    /* Show Hamburger Button */
+    .mobile-menu-btn { display: block !important; }
+
+    /* Main Content Adjustments */
+    main, .container, .admin-content { padding: 60px 15px 15px 15px !important; margin-left: 0 !important; }
+
+    /* FORCE TEXT TO SHOW IN SIDEBAR */
+    .admin-sidebar a, nav.sidebar a, aside a, .sidebar a {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 14px 20px !important;
+        white-space: nowrap !important;
+        color: #fff !important;
+    }
+    
+    /* Unhide any text spans that might be hidden by the theme */
+    .admin-sidebar a span, nav.sidebar a span, aside a span, .sidebar a span,
+    .admin-sidebar a .nav-text, nav.sidebar a .nav-text {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-left: 12px !important;
+        font-size: 1rem !important;
+    }
+
+    /* Make tables scroll horizontally on mobile */
+    table, .admin-table { display: block !important; overflow-x: auto !important; }
+    
+    /* Stack form grids on mobile */
+    div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+}
+</style>
+
 </head>
 <body class="admin-body">
   <aside class="admin-sidebar">
