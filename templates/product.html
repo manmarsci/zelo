@@ -92,7 +92,9 @@
             </div>
 
             <!-- Add to Cart Form -->
-            <form method="post" action="/cart/add/{{ product.id }}" style="margin-bottom:2rem;">
+            <form method="post" action="{{ url_for('cart_add') }}" style="margin-bottom:2rem;">
+                <input type="hidden" name="product_id" value="{{ product.id }}" />
+
                 <!-- Size Selection (if available) -->
                 {% if product.sizes %}
                 <div style="margin-bottom:1.5rem;">

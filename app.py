@@ -1,11 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
 import os
 import json
+import time
+import uuid
+import secrets
+import base64
+from datetime import datetime
+import duckdb
 import requests
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key-for-sessions")
+app.secret_key = os.environ.get("SECRET_KEY", os.environ.get("FLASK_SECRET_KEY", "super-secret-key-for-sessions"))
+
+DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
+FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
+
 
 def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
@@ -212,25 +223,22 @@ def product_detail(slug):
     """, [slug])
     if not p:
         abort(404)
-    
-    # Parse JSON strings into Python lists for the template
+
     try:
         p['sizes_list'] = json.loads(p['sizes']) if p['sizes'] else []
     except Exception:
         p['sizes_list'] = []
-        
+
     try:
         p['colors_list'] = json.loads(p['colors']) if p['colors'] else []
     except Exception:
         p['colors_list'] = []
 
-        # Parse features JSON
     try:
-        p['features_list'] = json.loads(p['features']) if p['features'] else []
+        p['features_list'] = json.loads(p['features']) if p.get('features') else []
     except Exception:
         p['features_list'] = []
 
-    # Track view
     execute("UPDATE products SET views = views + 1 WHERE id = ?", [p["id"]])
     images = query("SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order",
                    [p["id"]])
@@ -244,7 +252,20 @@ def product_detail(slug):
     return render_template("product.html", product=p, images=images, related=related)
 
 
-# ---------- Cart ----------
+# ---------- Cart (single source of truth: DB-backed) ----------
+@app.route("/cart")
+def cart():
+    items = get_cart_items()
+    for it in items:
+        it["price"] = float(it["sale_price"] or it["original_price"])
+        it["total"] = it["price"] * it["quantity"]
+    subtotal = sum(it["total"] for it in items)
+    delivery = 0 if subtotal >= FREE_DELIVERY_ABOVE else DELIVERY_CHARGES
+    total = subtotal + delivery
+    return render_template("cart.html", cart_items=items, subtotal=subtotal,
+                           delivery=delivery, total=total)
+
+
 @app.route("/cart/add", methods=["POST"])
 def cart_add():
     pid = int(request.form["product_id"])
@@ -285,7 +306,6 @@ def cart_add():
     return redirect(request.referrer or url_for("products"))
 
 
-
 @app.route("/cart/update/<int:cart_id>", methods=["POST"])
 def cart_update(cart_id):
     qty = max(1, int(request.form.get("quantity", 1)))
@@ -296,6 +316,7 @@ def cart_update(cart_id):
 @app.route("/cart/remove/<int:cart_id>", methods=["POST"])
 def cart_remove(cart_id):
     execute("DELETE FROM cart WHERE id = ?", [cart_id])
+    flash("Item removed from cart.", "info")
     return redirect(url_for("cart"))
 
 
@@ -413,7 +434,6 @@ def checkout():
     )
 
     if request.method == "POST":
-        # Unified Contact & Shipping Info
         if "user_id" in session:
             user = query_one("SELECT * FROM users WHERE id=?", [session["user_id"]])
             ship_name = user["name"]
@@ -435,7 +455,6 @@ def checkout():
             "postal": request.form.get("shipping_postal", "").strip(),
         }
 
-        # Coupon
         coupon_code = request.form.get("coupon_code", "").strip().upper()
         discount = 0
         if coupon_code:
@@ -454,17 +473,15 @@ def checkout():
                                        total=subtotal + delivery - discount,
                                        coupon_code=coupon_code)
 
-        delivery = 0 if subtotal >= 5000 else 300
+        delivery = 0 if subtotal >= FREE_DELIVERY_ABOVE else DELIVERY_CHARGES
         total = subtotal + delivery - discount
         payment_method = request.form.get("payment_method", "JazzCash")
 
-        # Create order
         order_number = "ZLB-" + datetime.now().strftime("%Y%m%d") + "-" + \
                        secrets.token_hex(3).upper()
 
         conn = get_db()
         try:
-            # Use RETURNING id to get the newly created order ID directly and safely
             order_row = conn.execute("""
                 INSERT INTO orders
                 (order_number, user_id, guest_name, guest_email, guest_phone,
@@ -478,7 +495,7 @@ def checkout():
                   shipping["address"], shipping["city"], shipping["province"],
                   shipping["postal"], subtotal, delivery, discount, total,
                   payment_method, coupon_code or None]).fetchone()
-            
+
             order_id = order_row[0]
 
             for it in items:
@@ -489,13 +506,11 @@ def checkout():
                     VALUES (?,?,?,?,?,?,?,?)
                 """, [order_id, it["id"], it["name"], it["quantity"], price,
                       it.get("size"), it.get("color"), it.get("image")])
-                # Decrease stock and increment sold
                 conn.execute("""
                     UPDATE products SET stock = stock - ?, sold = sold + ?
                     WHERE id = ?
                 """, [it["quantity"], it["quantity"], it["id"]])
 
-            # Clear cart
             if "user_id" in session:
                 conn.execute("DELETE FROM cart WHERE user_id = ?", [session["user_id"]])
             else:
@@ -533,40 +548,32 @@ def order_detail(order_number):
     order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
     if not order:
         abort(404)
-    
-    # Permission check:
-    # - Admin can view any order
-    # - Logged-in customer can only view their own orders
-    # - Guest can view the order they just placed (order number is the secret)
+
     if session.get("role") == "admin":
-        pass  # Admin can view all
+        pass
     elif "user_id" in session:
-        # Logged-in user — only allow if it's their order
         if order["user_id"] != session["user_id"]:
             abort(403)
     else:
-        # Guest user — allow access (order number is unique & hard to guess)
-        # But store the order number in session so they can re-access it
         if "recent_orders" not in session:
             session["recent_orders"] = []
         if order_number not in session["recent_orders"]:
             session["recent_orders"].append(order_number)
-            # Keep only last 5 orders in session
             session["recent_orders"] = session["recent_orders"][-5:]
-    
+
     items = query("SELECT * FROM order_items WHERE order_id = ?", [order["id"]])
     return render_template("order.html", order=order, items=items)
 
+
 @app.route("/track-order", methods=["GET", "POST"])
 def track_order():
-    """Allow guests to track their recent orders by order number."""
     if request.method == "POST":
         order_number = request.form.get("order_number", "").strip().upper()
         order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
         if order:
             return redirect(url_for("order_detail", order_number=order_number))
         flash("Order not found. Please check the order number.", "error")
-    
+
     return render_template("track_order.html")
 
 
@@ -613,8 +620,7 @@ def admin_product_form(pid=None):
 
     if request.method == "POST":
         f = request.form
-        
-        # --- Handle Features ---
+
         features = []
         for i in range(4):
             title = request.form.get(f"feat_title_{i}", "").strip()
@@ -624,13 +630,12 @@ def admin_product_form(pid=None):
         features_json = json.dumps(features)
 
         slug = slugify(f["name"]) if not (product and product["slug"]) else product["slug"]
-        
-        # --- Handle Bundle Info (New) ---
+
         included_pieces = request.form.getlist('included_pieces')
         bundle_type = request.form.get('bundle_type', 'standard')
         kameez_length = request.form.get('kameez_length', '').strip()
         dupatta_length = request.form.get('dupatta_length', '').strip()
-        
+
         bundle_info = json.dumps({
             "type": bundle_type,
             "pieces": included_pieces,
@@ -640,10 +645,10 @@ def admin_product_form(pid=None):
             }
         })
 
-        # Data for DB (added features_json and bundle_info at the end)
         data = [
             f["name"], slug, f.get("description", ""), f.get("fabric", ""),
-            int(f["brand_id"]) or None, int(f["category_id"]) or None,
+            int(f["brand_id"]) if f.get("brand_id") else None,
+            int(f["category_id"]) if f.get("category_id") else None,
             float(f["original_price"]),
             float(f["sale_price"]) if f.get("sale_price") else None,
             int(f["stock"]),
@@ -678,7 +683,6 @@ def admin_product_form(pid=None):
             pid = new_p["id"]
             flash("Product added.", "success")
 
-        # --- Handle Images (Clear old, insert new) ---
         execute("DELETE FROM product_images WHERE product_id = ?", [pid])
         image_urls = request.form.getlist("image_urls[]")
         for url in image_urls:
@@ -686,8 +690,7 @@ def admin_product_form(pid=None):
             if url:
                 execute("INSERT INTO product_images (product_id, image_url) VALUES (?,?)",
                         [pid, url])
-        
-        # Redirect to edit page to show new images
+
         return redirect(url_for("admin_product_form", pid=pid))
 
     return render_template("admin/product_form.html", product=product,
@@ -730,27 +733,26 @@ def admin_order_status(oid):
     flash("Order status updated.", "success")
     return redirect(request.referrer or url_for("admin_orders"))
 
+
 @app.route("/admin/orders/delete", methods=["POST"])
 @admin_required
 def admin_orders_bulk_delete():
-    # Get list of selected IDs
     ids_to_delete = request.form.getlist('order_ids')
-    
+
     if not ids_to_delete:
         flash("No orders selected.", "warning")
         return redirect(url_for("admin_orders"))
-        
+
     deleted_count = 0
-    
+
     for oid in ids_to_delete:
-        # 1. Delete associated order items first to prevent orphaned data
         execute("DELETE FROM order_items WHERE order_id = ?", [oid])
-        # 2. Delete the order itself
         execute("DELETE FROM orders WHERE id = ?", [oid])
         deleted_count += 1
-            
+
     flash(f"Successfully deleted {deleted_count} order(s) and their items.", "success")
     return redirect(url_for("admin_orders"))
+
 
 @app.route("/admin/customer/<int:uid>/edit", methods=["GET", "POST"])
 @admin_required
@@ -758,7 +760,7 @@ def admin_customer_edit(uid):
     user = query_one("SELECT * FROM users WHERE id = ?", [uid])
     if not user:
         abort(404)
-        
+
     if request.method == "POST":
         name = request.form["name"].strip()
         email = request.form["email"].strip().lower()
@@ -767,52 +769,49 @@ def admin_customer_edit(uid):
         city = request.form.get("city", "").strip()
         province = request.form.get("province", "").strip()
         postal_code = request.form.get("postal_code", "").strip()
-        
+
         execute("""
-            UPDATE users SET name=?, email=?, phone=?, address=?, city=?, province=?, postal_code=? 
+            UPDATE users SET name=?, email=?, phone=?, address=?, city=?, province=?, postal_code=?
             WHERE id=?
         """, [name, email, phone, address, city, province, postal_code, uid])
-        
+
         flash("Customer updated successfully.", "success")
         return redirect(url_for("admin_customers"))
-    
-    # Fetch slips for this customer to display in the template
+
     slips = query("SELECT * FROM courier_slips WHERE customer_phone = ? ORDER BY created_at DESC", [user["phone"]])
-    
+
     return render_template("admin/customer_edit.html", user=user, slips=slips)
+
 
 @app.route("/admin/customers/delete", methods=["POST"])
 @admin_required
 def admin_customers_bulk_delete():
-    # Get list of selected IDs
     ids_to_delete = request.form.getlist('customer_ids')
-    
+
     if not ids_to_delete:
         flash("No customers selected.", "warning")
         return redirect(url_for("admin_customers"))
-        
+
     current_admin_id = session.get("user_id")
     deleted_count = 0
-    
+
     for uid in ids_to_delete:
-        # Safety check: Only delete actual customers, and never delete yourself
         user = query_one("SELECT id, role FROM users WHERE id = ?", [uid])
         if user and user['role'] == 'customer' and user['id'] != current_admin_id:
             execute("DELETE FROM users WHERE id = ?", [uid])
             deleted_count += 1
-            
+
     flash(f"Successfully deleted {deleted_count} customer(s).", "success")
     return redirect(url_for("admin_customers"))
+
 
 @app.route("/admin/customer/<int:uid>/delete", methods=["POST"])
 @admin_required
 def admin_customer_delete(uid):
-    # Safety check: Prevent admins from deleting themselves
     if session.get("user_id") == uid:
         flash("You cannot delete your own account.", "error")
         return redirect(url_for("admin_customers"))
-        
-    # Delete the customer (restrict to role='customer' to prevent accidental admin deletion)
+
     execute("DELETE FROM users WHERE id = ? AND role = 'customer'", [uid])
     flash("Customer deleted successfully.", "success")
     return redirect(url_for("admin_customers"))
@@ -825,7 +824,6 @@ def admin_customers():
     return render_template("admin/customers.html", customers=customers)
 
 
-# ---------- Admin: Add Customer ----------
 @app.route("/admin/customer/new", methods=["GET", "POST"])
 @admin_required
 def admin_customer_add():
@@ -835,37 +833,33 @@ def admin_customer_add():
         phone = request.form["phone"].strip()
         city = request.form.get("city", "").strip().upper()
         address = request.form.get("address", "").strip()
-        
-        # Courier slip fields
+
         courier_name = request.form.get("courier_name", "").strip()
         slip_date = request.form.get("slip_date", "").strip()
         description = request.form.get("description", "").strip()
         charges = request.form.get("charges", "").strip()
         tracking_number = request.form.get("tracking_number", "").strip()
-        
+
         existing = query_one("SELECT id FROM users WHERE email = ?", [email])
         if existing:
             flash("Email already exists.", "error")
             return redirect(url_for("admin_customer_add"))
-        
-        # Check if phone already exists
+
         phone_exists = query_one("SELECT id FROM users WHERE phone = ?", [phone])
         if phone_exists:
             flash("Phone number already exists.", "error")
             return redirect(url_for("admin_customer_add"))
-        
+
         execute(
             "INSERT INTO users (name, email, phone, password_hash, role, city, address) VALUES (?,?,?,?,?,?,?)",
             [name, email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), 'customer', city, address]
         )
-        
-        # If tracking number is provided, create a courier slip
+
         if tracking_number:
-            # Check if tracking number already exists
             tracking_exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
             if not tracking_exists:
                 execute("""
-                    INSERT INTO courier_slips 
+                    INSERT INTO courier_slips
                     (customer_name, customer_phone, city, address, tracking_number, courier_name, slip_date, description, charges)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, [name, phone, city, address, tracking_number, courier_name, slip_date, description, charges])
@@ -874,29 +868,17 @@ def admin_customer_add():
                 flash(f"Customer '{name}' added, but tracking number {tracking_number} already exists.", "warning")
         else:
             flash(f"Customer '{name}' added successfully.", "success")
-            
+
         return redirect(url_for("admin_customers"))
-    
+
     return render_template("admin/customer_form.html")
 
 
-# ---------- Admin: Add Order ----------
 @app.route("/admin/order/new", methods=["GET", "POST"])
 @admin_required
 def admin_order_add():
     if request.method == "POST":
-        # Get customer or guest info
         customer_id = request.form.get("customer_id")
-        if customer_id:
-            customer = query_one("SELECT * FROM users WHERE id = ?", [customer_id])
-            guest_name, guest_email, guest_phone = None, None, None
-        else:
-            guest_name = request.form["guest_name"].strip()
-            guest_email = request.form["guest_email"].strip()
-            guest_phone = request.form["guest_phone"].strip()
-            customer = None
-        
-        # Unified Contact & Shipping Info
         if customer_id:
             customer = query_one("SELECT * FROM users WHERE id = ?", [customer_id])
             ship_name = customer["name"]
@@ -918,23 +900,21 @@ def admin_order_add():
             "province": request.form["shipping_province"].strip(),
             "postal": request.form.get("shipping_postal", "").strip(),
         }
-        
-        # Get products and quantities
+
         product_ids = request.form.getlist("product_id[]")
         quantities = request.form.getlist("quantity[]")
         prices = request.form.getlist("price[]")
-        
+
         subtotal = sum(float(p) * int(q) for p, q in zip(prices, quantities) if p and q)
         delivery = float(request.form.get("delivery_charges", DELIVERY_CHARGES))
         discount = float(request.form.get("discount", 0))
         total = subtotal + delivery - discount
-        
+
         payment_method = request.form.get("payment_method", "JazzCash")
         status = request.form.get("status", "Pending")
-        
-        # Generate order number
+
         order_number = "ZLB-" + datetime.now().strftime("%Y%m%d") + "-" + secrets.token_hex(3).upper()
-        
+
         conn = get_db()
         try:
             conn.execute("""
@@ -948,12 +928,11 @@ def admin_order_add():
                   shipping["name"], shipping["phone"], shipping["address"],
                   shipping["city"], shipping["province"], shipping["postal"],
                   subtotal, delivery, discount, total, payment_method, status])
-            
+
             order_row = conn.execute(
                 "SELECT id FROM orders WHERE order_number = ?", [order_number]).fetchone()
             order_id = order_row[0]
-            
-            # Add order items
+
             for pid, qty, price in zip(product_ids, quantities, prices):
                 if pid and qty and price:
                     product = query_one("SELECT name FROM products WHERE id = ?", [pid])
@@ -962,26 +941,23 @@ def admin_order_add():
                         (order_id, product_id, product_name, quantity, price)
                         VALUES (?,?,?,?,?)
                     """, [order_id, int(pid), product["name"], int(qty), float(price)])
-                    
-                    # Update stock
+
                     conn.execute("""
                         UPDATE products SET stock = stock - ?, sold = sold + ?
                         WHERE id = ?
                     """, [int(qty), int(qty), int(pid)])
-            
+
         finally:
             conn.close()
-        
+
         flash(f"Order {order_number} created successfully.", "success")
         return redirect(url_for("admin_orders"))
-    
-    # GET request - show form
+
     customers = query("SELECT * FROM users WHERE role='customer' ORDER BY name")
     products = query("SELECT * FROM products WHERE is_active ORDER BY name")
     return render_template("admin/order_form.html", customers=customers, products=products)
 
 
-# ---------- Admin: Product Quick View (Google Shopping Style) ----------
 @app.route("/admin/products/grid")
 @admin_required
 def admin_products_grid():
@@ -1002,135 +978,79 @@ def payment_instructions(order_number):
     order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
     if not order:
         abort(404)
-    
-    # Check if user has permission to view this order
+
     if "role" not in session or session["role"] != "admin":
         if order["user_id"] != session.get("user_id"):
             abort(403)
-    
+
     return render_template("payment_instructions.html", order=order)
 
 
 # ---------- Upload Payment Proof ----------
-import cloudinary.uploader  # Add this import at top of app.py
+import cloudinary.uploader
 
 @app.route("/upload-payment-proof/<order_number>", methods=["POST"])
 def upload_payment_proof(order_number):
     order = query_one("SELECT * FROM orders WHERE order_number = ?", [order_number])
     if not order:
         abort(404)
-    
+
     if "role" not in session or session["role"] != "admin":
         if order["user_id"] != session.get("user_id"):
             abort(403)
-    
+
     if "payment_proof" not in request.files:
         flash("No file uploaded.", "error")
         return redirect(url_for("payment_instructions", order_number=order_number))
-    
+
     file = request.files["payment_proof"]
     if file.filename == "":
         flash("No file selected.", "error")
         return redirect(url_for("payment_instructions", order_number=order_number))
-    
+
     try:
-        # Upload directly to Cloudinary - NO LOCAL SAVING
         result = cloudinary.uploader.upload(
-            file, 
+            file,
             folder="zelo_boutique/payment_proofs",
             resource_type="image"
         )
         proof_url = result["secure_url"]
-        
+
         execute("UPDATE orders SET payment_proof_url = ? WHERE order_number = ?",
                 [proof_url, order_number])
-        
+
         flash("Payment proof uploaded successfully!", "success")
     except Exception as e:
         print(f"Cloudinary upload error: {e}")
         flash("Failed to upload payment proof.", "error")
-    
+
     return redirect(url_for("order_detail", order_number=order_number))
 
 
 # ---------- Run ----------
-# REMOVE THIS OLD BLOCK:
-# if __name__ == "__main__":
-#     port = int(os.getenv("PORT", 5000))
-#     app.run(debug=False, host="0.0.0.0", port=port)
-
-# ADD THIS NEW BLOCK INSTEAD:
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# ---------- SEO Routes ----------
-
-@app.route("/sitemap.xml")
-def sitemap_xml():
-    # Dynamically generate sitemap.xml
-    domain = request.host_url.rstrip('/')
-    
-    # Fetch all active products and categories
-    products = query("SELECT slug, created_at FROM products WHERE is_active = TRUE")
-    categories = query("SELECT slug FROM categories")
-    
-    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
-    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
-    
-    # Static pages
-    static_pages = ['', '/products', '/track-order']
-    for page in static_pages:
-        xml.append(f'''
-        <url>
-            <loc>{domain}{page}</loc>
-            <changefreq>daily</changefreq>
-            <priority>0.8</priority>
-        </url>''')
-        
-    # Products
-    for p in products:
-        xml.append(f'''
-        <url>
-            <loc>{domain}/product/{p['slug']}</loc>
-            <lastmod>{p['created_at'].strftime('%Y-%m-%d') if p['created_at'] else '2026-01-01'}</lastmod>
-            <changefreq>weekly</changefreq>
-            <priority>0.6</priority>
-        </url>''')
-        
-    # Categories
-    for c in categories:
-        xml.append(f'''
-        <url>
-            <loc>{domain}/products?category={c['slug']}</loc>
-            <changefreq>weekly</changefreq>
-            <priority>0.7</priority>
-        </url>''')
-
-    xml.append('</urlset>')
-    return app.response_class('\n'.join(xml), mimetype='application/xml')
 
 # ---------- Admin: Customer Map ----------
 @app.route("/admin/map")
 @admin_required
 def admin_map():
-    # Get order counts by city
     city_stats = query("""
-        SELECT shipping_city as city, COUNT(*) as count 
-        FROM orders 
-        WHERE shipping_city IS NOT NULL AND shipping_city != '' 
+        SELECT shipping_city as city, COUNT(*) as count
+        FROM orders
+        WHERE shipping_city IS NOT NULL AND shipping_city != ''
         GROUP BY shipping_city
     """)
-    
-    # Get slip counts by city (since you don't have orders yet)
+
     slip_stats = query("""
-        SELECT city, COUNT(*) as count 
-        FROM courier_slips 
-        WHERE city IS NOT NULL AND city != '' 
+        SELECT city, COUNT(*) as count
+        FROM courier_slips
+        WHERE city IS NOT NULL AND city != ''
         GROUP BY city
     """)
-    
-    # Merge the data
+
     merged = {}
     for row in city_stats:
         c = row['city'].title()
@@ -1138,14 +1058,12 @@ def admin_map():
     for row in slip_stats:
         c = row['city'].title()
         merged[c] = merged.get(c, 0) + row['count']
-        
-    # Convert to JSON for JavaScript
+
     map_data = json.dumps([{"city": k, "count": v} for k, v in merged.items()])
-    
-    # Prepare list and max count for the HTML table density bars
+
     map_data_list = [{"city": k, "count": v} for k, v in sorted(merged.items(), key=lambda x: x[1], reverse=True)]
     max_count = max(merged.values()) if merged else 1
-    
+
     return render_template("admin/map.html", map_data=map_data, map_data_list=map_data_list, max_count=max_count)
 
 
@@ -1161,11 +1079,11 @@ def admin_courier_scanner():
 def admin_courier_update():
     if not request.is_json:
         return jsonify({"success": False, "error": "Invalid data format"}), 400
-        
+
     data = request.get_json()
     slips = data.get('slips', [])
     saved_count = 0
-    
+
     try:
         for slip in slips:
             name = slip.get("customer_name", "").strip().upper()
@@ -1181,25 +1099,23 @@ def admin_courier_update():
             if not name or not phone or not tracking_number:
                 continue
 
-            # 1. Create/Update Customer
             existing_user = query_one("SELECT id FROM users WHERE phone = ?", [phone])
             if not existing_user:
                 placeholder_email = f"{phone}@zelolive.com"
                 existing_email = query_one("SELECT id FROM users WHERE email = ?", [placeholder_email])
                 if not existing_email:
                     execute("""
-                        INSERT INTO users (name, email, phone, password_hash, role, city, address) 
+                        INSERT INTO users (name, email, phone, password_hash, role, city, address)
                         VALUES (?, ?, ?, ?, 'customer', ?, ?)
                     """, [name, placeholder_email, phone, generate_password_hash("temp123", method='pbkdf2:sha256'), city, address])
             else:
                 if address or city:
                     execute("""
-                        UPDATE users SET city = COALESCE(NULLIF(?, ''), city), 
-                                         address = COALESCE(NULLIF(?, ''), address) 
+                        UPDATE users SET city = COALESCE(NULLIF(?, ''), city),
+                                         address = COALESCE(NULLIF(?, ''), address)
                         WHERE id = ?
                     """, [city, address, existing_user['id']])
 
-            # 2. Save the Slip (Deduplicated)
             exists = query_one("SELECT id FROM courier_slips WHERE tracking_number = ?", [tracking_number])
             if not exists:
                 execute("""
@@ -1207,9 +1123,9 @@ def admin_courier_update():
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, [name, phone, city, address, tracking_number, courier_name or 'Other', description, charges, slip_date])
                 saved_count += 1
-                
+
         return jsonify({"success": True, "saved": saved_count})
-        
+
     except Exception as e:
         print(f"DATABASE ERROR SAVING SLIPS: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -1239,7 +1155,6 @@ Rules:
 
 
 def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
-    """Calls Gemini 3.5 Flash vision API, retrying with backoff on rate limits/transient errors."""
     for attempt in range(max_retries):
         try:
             resp = gemini_client.models.generate_content(
@@ -1250,8 +1165,8 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
                 ],
                 config=genai_types.GenerateContentConfig(
                     temperature=0.0,
-                    response_mime_type="application/json",  # forces clean JSON output; unlike Groq's Qwen this doesn't leak reasoning into the text
-                    thinking_config=genai_types.ThinkingConfig(thinking_level=genai_types.ThinkingLevel.LOW)  # Gemini 3.x can't fully disable thinking, but LOW keeps cost/latency down
+                    response_mime_type="application/json",
+                    thinking_config=genai_types.ThinkingConfig(thinking_level=genai_types.ThinkingLevel.LOW)
                 )
             )
             if hasattr(resp, "usage_metadata") and resp.usage_metadata:
@@ -1264,7 +1179,7 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
         except Exception as e:
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 if attempt < max_retries - 1:
-                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    wait = 2 ** attempt
                     print(f"Rate limited, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
                     time.sleep(wait)
                     continue
@@ -1274,38 +1189,30 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
 @app.route("/admin/smart-scan", methods=["POST"])
 @admin_required
 def admin_smart_scan():
-    """Use Groq or OpenRouter Vision model to extract data from courier slip images"""
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
-    
+
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
-    
-    # Get selected model (default to Groq's qwen model)
+
     selected_model = request.form.get('model', 'qwen/qwen3.6-27b')
-    
+
     try:
-        # Read and encode image to base64
         img_bytes = file.read()
         base64_image = base64.b64encode(img_bytes).decode('utf-8')
         mime_type = file.mimetype or 'image/jpeg'
-        
-        # Check if using OpenRouter
+
         if selected_model.startswith('openrouter/'):
-            # Use OpenRouter API
-            import requests
-            
-            # Extract the actual model name (remove 'openrouter/' prefix)
             openrouter_model = selected_model.replace('openrouter/', '')
-            
+
             headers = {
                 "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": request.host_url,
                 "X-Title": "ZELO Courier Scanner"
             }
-            
+
             payload = {
                 "model": openrouter_model,
                 "messages": [
@@ -1315,7 +1222,7 @@ def admin_smart_scan():
                             {
                                 "type": "text",
                                 "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
-                                
+
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
     "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
@@ -1345,22 +1252,21 @@ Rules:
                 ],
                 "max_tokens": 1000
             }
-            
+
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
                 json=payload,
                 timeout=60
             )
-            
+
             if response.status_code != 200:
                 print(f"OpenRouter API Error: {response.status_code} - {response.text}")
                 return jsonify({"error": f"OpenRouter API error: {response.status_code}"}), 500
-            
+
             result = response.json()
             content = result['choices'][0]['message']['content'].strip()
         else:
-            # Use Groq (existing logic)
             response = groq_client.chat.completions.create(
                 model=selected_model,
                 messages=[
@@ -1370,7 +1276,7 @@ Rules:
                             {
                                 "type": "text",
                                 "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
-                                
+
 Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
 {
     "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
@@ -1404,11 +1310,10 @@ Rules:
                 extra_body={"reasoning_effort": "none"}
             )
             content = response.choices[0].message.content.strip()
-        
-        # Robust JSON extraction
+
         start_idx = content.find('{')
         end_idx = content.rfind('}')
-        
+
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
             json_str = content[start_idx:end_idx+1]
             try:
@@ -1419,12 +1324,12 @@ Rules:
         else:
             print(f"No JSON brackets found in response: {content}")
             return jsonify({"error": f"AI did not return JSON. Response: {content[:200]}"}), 500
-        
+
         return jsonify({
             "success": True,
             "data": extracted_data
         })
-        
+
     except Exception as e:
         print(f"Vision API Error: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1436,11 +1341,11 @@ Rules:
 def admin_postex_tracking():
     if request.method == "GET":
         return render_template("admin/tracking_postex.html")
-        
+
     tracking_number = request.json.get("trackingNumber")
     if not tracking_number:
         return jsonify({"error": "Tracking number is required"}), 400
-        
+
     try:
         headers = {
             "Content-Type": "application/json",
@@ -1449,19 +1354,19 @@ def admin_postex_tracking():
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
         }
         payload = {"trackingNumber": tracking_number}
-        
+
         response = requests.post(
             "https://postex.pk/api/tracking-order",
             json=payload,
             headers=headers,
             timeout=10
         )
-        
+
         if response.status_code == 200:
             return jsonify(response.json())
         else:
             return jsonify({"error": f"PostEx API returned status {response.status_code}"}), response.status_code
-            
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1471,12 +1376,13 @@ def admin_postex_tracking():
 def public_track_page():
     return render_template("public_tracking.html")
 
+
 @app.route("/api/public-track", methods=["POST"])
 def public_track_api():
     tracking_number = request.json.get("trackingNumber")
     if not tracking_number:
         return jsonify({"error": "Tracking number is required"}), 400
-        
+
     try:
         headers = {
             "Content-Type": "application/json",
@@ -1485,19 +1391,19 @@ def public_track_api():
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
         }
         payload = {"trackingNumber": tracking_number}
-        
+
         response = requests.post(
             "https://postex.pk/api/tracking-order",
             json=payload,
             headers=headers,
             timeout=10
         )
-        
+
         if response.status_code == 200:
             return jsonify(response.json())
         else:
             return jsonify({"error": f"PostEx API returned status {response.status_code}"}), response.status_code
-            
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1525,51 +1431,28 @@ def terms():
 
 
 # ---------- SEO: Sitemap & Robots.txt ----------
-
 @app.route("/sitemap.xml")
 def sitemap():
-    # Fetch all product slugs for the sitemap
-    products = query("SELECT slug, updated_at FROM products WHERE is_active = 1")
-    
+    products = query("SELECT slug, created_at FROM products WHERE is_active = TRUE")
+
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    
-    # Static Pages
+
     static_pages = ['/', '/products', '/faq', '/shipping', '/returns', '/privacy', '/terms']
     for page in static_pages:
         xml += f'  <url><loc>https://zelo-theta-murex.vercel.app{page}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
-        
-    # Product Pages
+
     if products:
         for p in products:
             slug = p['slug']
             xml += f'  <url><loc>https://zelo-theta-murex.vercel.app/product/{slug}</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>\n'
-            
+
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
 
-# ---------- About Us Page ----------
-@app.route("/about")
-def about():
-    return render_template("about.html")
-
-
-def get_video_id(url):
-    """Extract YouTube video ID from URL"""
-    if not url:
-        return ''
-    import re
-    reg_exp = re.compile(r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})')
-    match = reg_exp.search(url)
-    return match.group(1) if match else ''
-
-# Add to template context
-app.jinja_env.globals.update(get_video_id=get_video_id)
-
 @app.route("/robots.txt")
 def robots_txt():
-    # Dynamically generate robots.txt
     domain = request.host_url.rstrip('/')
     content = f"""User-agent: *
 Allow: /
@@ -1583,63 +1466,23 @@ Sitemap: {domain}/sitemap.xml
     return app.response_class(content, mimetype='text/plain')
 
 
-# ---------- Cart Routes ----------
-@app.route("/cart/add/<int:product_id>", methods=["POST"])
-def add_to_cart(product_id):
-    quantity = int(request.form.get('quantity', 1))
-    if 'cart' not in session:
-        session['cart'] = {}
-    
-    pid_str = str(product_id)
-    if pid_str in session['cart']:
-        session['cart'][pid_str] += quantity
-    else:
-        session['cart'][pid_str] = quantity
-    
-    session.modified = True
-    flash("Item added to cart!", "success")
-    return redirect(request.referrer or url_for('cart'))
+# ---------- About Us Page ----------
+@app.route("/about")
+def about():
+    return render_template("about.html")
 
-# ---------- Cart Routes (Single Source of Truth) ----------
-@app.route("/cart/add/<int:product_id>", methods=["POST"])
-def add_to_cart(product_id):
-    quantity = int(request.form.get('quantity', 1))
-    if 'cart' not in session:
-        session['cart'] = {}
-    pid_str = str(product_id)
-    if pid_str in session['cart']:
-        session['cart'][pid_str] += quantity
-    else:
-        session['cart'][pid_str] = quantity
-    session.modified = True
-    flash("Item added to cart!", "success")
-    return redirect(request.referrer or url_for('cart'))
 
-@app.route("/cart")
-def cart():
-    cart_items = []
-    total = 0
-    cart = session.get('cart', {})
-    for pid_str, qty in cart.items():
-        product = query_one("SELECT * FROM products WHERE id = ?", [int(pid_str)])
-        if product:
-            price = product['sale_price'] if product['sale_price'] else product['original_price']
-            item_total = price * qty
-            total += item_total
-            cart_items.append({
-                'product': product,
-                'quantity': qty,
-                'price': price,
-                'total': item_total
-            })
-    return render_template("cart.html", cart_items=cart_items, total=total)
+def get_video_id(url):
+    if not url:
+        return ''
+    import re
+    reg_exp = re.compile(r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})')
+    match = reg_exp.search(url)
+    return match.group(1) if match else ''
 
-@app.route("/cart/remove/<int:product_id>")
-def remove_from_cart(product_id):
-    if 'cart' in session:
-        pid_str = str(product_id)
-        if pid_str in session['cart']:
-            del session['cart'][pid_str]
-            session.modified = True
-    flash("Item removed from cart.", "info")
-    return redirect(url_for('cart'))
+app.jinja_env.globals.update(get_video_id=get_video_id)
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
