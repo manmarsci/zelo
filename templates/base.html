@@ -292,12 +292,14 @@
 </footer>
 
 
-<!-- Pure DataLayer Events (No GTM/GA4) -->
+
+
+
+<!-- Pure DataLayer Events (Debug Enabled) -->
 <script>
-// 1. Initialize DataLayer
 window.dataLayer = window.dataLayer || [];
 
-// 2. Outbound & Interaction Click Tracking
+// 1. Outbound & Interaction Click Tracking
 document.addEventListener('click', function(e) {
     const target = e.target.closest('a');
     if (!target || !target.href) return;
@@ -326,58 +328,51 @@ document.addEventListener('click', function(e) {
     }
 
     if (eventType) {
-        window.dataLayer.push({
-            event: eventType,
-            ...eventData
-        });
+        const pushData = { event: eventType, ...eventData };
+        window.dataLayer.push(pushData);
+        console.log('️ Click Event Fired:', pushData);
     }
 });
 
-// 3. YouTube Video Play Tracking
-var tag = document.createElement('script');
-tag.src = "https://www.youtube.com/iframe_api";
-var firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-var ytPlayers = [];
-
-function onYouTubeIframeAPIReady() {
+// 2. YouTube Video Play Tracking
+window.onYouTubeIframeAPIReady = function() {
     var iframes = document.querySelectorAll('iframe[src*="youtube.com/embed/"], iframe[src*="youtu.be/embed/"]');
     iframes.forEach(function(iframe) {
-        var src = iframe.src;
-        if (src.indexOf('enablejsapi=1') === -1) {
-            iframe.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'enablejsapi=1&origin=' + window.location.origin;
-        }
-        
-        var player = new YT.Player(iframe, {
-            events: {
-                'onStateChange': function(event) {
-                    var videoData = player.getVideoData();
-                    if (event.data === YT.PlayerState.PLAYING) {
-                        window.dataLayer.push({
-                            event: 'video_start',
-                            video_provider: 'youtube',
-                            video_title: videoData.title,
-                            video_id: videoData.video_id
-                        });
-                    } else if (event.data === YT.PlayerState.PAUSED) {
-                        window.dataLayer.push({
-                            event: 'video_pause',
-                            video_provider: 'youtube',
-                            video_title: videoData.title
-                        });
-                    } else if (event.data === YT.PlayerState.ENDED) {
-                        window.dataLayer.push({
-                            event: 'video_complete',
-                            video_provider: 'youtube',
-                            video_title: videoData.title
-                        });
+        try {
+            var src = iframe.src;
+            if (src.indexOf('enablejsapi=1') === -1) {
+                iframe.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'enablejsapi=1&origin=' + window.location.origin;
+            }
+            
+            var player = new YT.Player(iframe, {
+                events: {
+                    'onStateChange': function(event) {
+                        try {
+                            var videoData = player.getVideoData();
+                            if (event.data === YT.PlayerState.PLAYING) {
+                                var pushData = { event: 'video_start', video_provider: 'youtube', video_title: videoData.title, video_id: videoData.video_id };
+                                window.dataLayer.push(pushData);
+                                console.log('▶️ Video Event Fired:', pushData);
+                            } else if (event.data === YT.PlayerState.ENDED) {
+                                var pushData = { event: 'video_complete', video_provider: 'youtube', video_title: videoData.title };
+                                window.dataLayer.push(pushData);
+                                console.log('⏹️ Video Event Fired:', pushData);
+                            }
+                        } catch(err) { console.error('YT Event Error:', err); }
                     }
                 }
-            }
-        });
-        ytPlayers.push(player);
+            });
+        } catch(err) { console.error('YT Player Init Error:', err); }
     });
+};
+
+// Load YouTube API safely
+if (!document.getElementById('youtube-iframe-api')) {
+    var tag = document.createElement('script');
+    tag.id = 'youtube-iframe-api';
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 }
 </script>
 

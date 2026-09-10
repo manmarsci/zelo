@@ -237,53 +237,59 @@ function getVideoId(url) {
     return (match && match[2].length === 11) ? match[2] : '';
 }
 
-<!-- E-commerce DataLayer Events -->
+
+
+</script>
+{% endblock %}
+
+<!-- E-commerce DataLayer Events (Debug Enabled) -->
 <script>
 window.dataLayer = window.dataLayer || [];
 
-// 1. View Item Event (fires on page load)
-window.dataLayer.push({
+// 1. View Item Event (fires immediately)
+var viewItemData = {
     event: 'view_item',
     ecommerce: {
         currency: 'PKR',
         value: {{ product.sale_price if product.sale_price else product.original_price }},
         items: [{
             item_id: '{{ product.id }}',
-            item_name: '{{ product.name | replace("'", "\'") }}',
-            item_brand: '{{ product.brand_name | default("", true) | replace("'", "\'") }}',
+            item_name: {{ product.name | tojson }},
+            item_brand: {{ product.brand_name | default("", true) | tojson }},
             price: {{ product.sale_price if product.sale_price else product.original_price }},
             quantity: 1
         }]
     }
-});
+};
+window.dataLayer.push(viewItemData);
+console.log('✅ DataLayer Event Fired:', viewItemData);
 
-// 2. Add to Cart Event (fires on form submission)
+// 2. Add to Cart Event
 document.addEventListener('DOMContentLoaded', function() {
-    const cartForm = document.querySelector('form[action^="/cart/add"]');
+    const cartForm = document.querySelector('form[action*="/cart/add"]');
     if (cartForm) {
         cartForm.addEventListener('submit', function() {
             const qtyInput = this.querySelector('input[name="quantity"]');
             const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
             const price = {{ product.sale_price if product.sale_price else product.original_price }};
             
-            window.dataLayer.push({
+            var addToCartData = {
                 event: 'add_to_cart',
                 ecommerce: {
                     currency: 'PKR',
                     value: price * qty,
                     items: [{
                         item_id: '{{ product.id }}',
-                        item_name: '{{ product.name | replace("'", "\'") }}',
-                        item_brand: '{{ product.brand_name | default("", true) | replace("'", "\'") }}',
+                        item_name: {{ product.name | tojson }},
+                        item_brand: {{ product.brand_name | default("", true) | tojson }},
                         price: price,
                         quantity: qty
                     }]
                 }
-            });
+            };
+            window.dataLayer.push(addToCartData);
+            console.log(' DataLayer Event Fired:', addToCartData);
         });
     }
 });
 </script>
-
-</script>
-{% endblock %}
