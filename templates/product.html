@@ -1,5 +1,37 @@
 {% extends "base.html" %}
+
+{% block title %}{{ product.name }}{% if product.brand_name %} by {{ product.brand_name }}{% endif %} | ZELO LIVE BOUTIQUE{% endblock %}
+
+{% block meta_desc %}{{ product.name }}{% if product.brand_name %} from {{ product.brand_name }}{% endif %}{% if product.fabric %}, {{ product.fabric }} fabric{% endif %} — PKR {{ "%.0f"|format(product.sale_price or product.original_price) }}. Authentic branded leftover, {{ "in stock" if product.stock > 0 else "limited stock" }}. Cash on Delivery available across Pakistan.{% endblock %}
+
+{% block og_title %}{{ product.name }}{% if product.brand_name %} — {{ product.brand_name }}{% endif %}{% endblock %}
+{% block og_desc %}{{ product.description[:150] if product.description else (product.name ~ ' — authentic branded leftover, PKR ' ~ "%.0f"|format(product.sale_price or product.original_price)) }}{% endblock %}
+{% block twitter_title %}{{ product.name }}{% endblock %}
+{% block twitter_desc %}{{ product.description[:150] if product.description else product.name }}{% endblock %}
+
 {% block content %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ product.name | tojson }},
+  "description": {{ (product.description or product.name) | tojson }},
+  "image": {{ (product.image or "") | tojson }},
+  "sku": {{ product.slug | tojson }},
+  "brand": {
+    "@type": "Brand",
+    "name": {{ (product.brand_name or "ZELO LIVE BOUTIQUE") | tojson }}
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "{{ request.url }}",
+    "priceCurrency": "PKR",
+    "price": "{{ "%.2f"|format(product.sale_price or product.original_price) }}",
+    "availability": "{{ 'https://schema.org/InStock' if product.stock > 0 else 'https://schema.org/OutOfStock' }}",
+    "itemCondition": "https://schema.org/NewCondition"
+  }
+}
+</script>
 <style>
 .pp-container { max-width:1200px; margin:0 auto; padding:2rem; }
 .pp-breadcrumb { margin-bottom:1.5rem; color:#888; font-size:0.85rem; }

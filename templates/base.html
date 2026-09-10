@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ page_title if page_title else 'ZELO LIVE BOUTIQUE | Premium Branded Leftover Suits' }}</title>
+  <title>{% block title %}ZELO LIVE BOUTIQUE | Premium Branded Leftover Suits{% endblock %}</title>
     <meta name="description" content="{{ page_description if page_description else 'Shop premium branded leftover suits, patches, and accessories from top brands in Pakistan at unbeatable prices. Fast delivery.' }}">
     <meta name="keywords" content="branded leftover suits, unstitched suits Pakistan, patches, Zelo Live, Gul Ahmed, Khaadi, Sapphire">
     <meta name="robots" content="index, follow">

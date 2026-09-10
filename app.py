@@ -1462,22 +1462,36 @@ def terms():
 # ---------- SEO: Sitemap & Robots.txt ----------
 @app.route("/sitemap.xml")
 def sitemap():
+    domain = request.host_url.rstrip('/')
     products = query("SELECT slug, created_at FROM products WHERE is_active = TRUE")
+    categories = query("SELECT slug FROM categories")
 
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
-    static_pages = ['/', '/products', '/faq', '/shipping', '/returns', '/privacy', '/terms']
-    for page in static_pages:
-        xml += f'  <url><loc>https://zelo-theta-murex.vercel.app{page}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
+    static_pages = [
+        ('/', '1.0', 'daily'),
+        ('/products', '0.9', 'daily'),
+        ('/about', '0.6', 'monthly'),
+        ('/faq', '0.5', 'monthly'),
+        ('/shipping', '0.5', 'monthly'),
+        ('/returns', '0.5', 'monthly'),
+        ('/privacy', '0.3', 'yearly'),
+        ('/terms', '0.3', 'yearly'),
+    ]
+    for page, priority, freq in static_pages:
+        xml += f'  <url><loc>{domain}{page}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>\n'
 
-    if products:
-        for p in products:
-            slug = p['slug']
-            xml += f'  <url><loc>https://zelo-theta-murex.vercel.app/product/{slug}</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>\n'
+    for c in categories:
+        xml += f'  <url><loc>{domain}/products?category={c["slug"]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
+
+    for p in products:
+        lastmod = p['created_at'].strftime('%Y-%m-%d') if p.get('created_at') else ''
+        lastmod_tag = f'<lastmod>{lastmod}</lastmod>' if lastmod else ''
+        xml += f'  <url><loc>{domain}/product/{p["slug"]}</loc>{lastmod_tag}<changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
 
     xml += '</urlset>'
-    return xml, 200, {'Content-Type': 'application/xml'}
+    return app.response_class(xml, mimetype='application/xml')
 
 
 @app.route("/robots.txt")
