@@ -261,7 +261,7 @@ var viewItemData = {
         }]
     }
 };
-window.dataLayer.push(viewItemData);
+if (typeof gtag === 'function') { gtag('event', 'view_item', viewItemData.ecommerce); } else { window.dataLayer.push(viewItemData); }
 console.log('✅ DataLayer Event Fired:', viewItemData);
 
 // 2. Add to Cart Event
@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }]
                 }
             };
-            window.dataLayer.push(addToCartData);
+            if (typeof gtag === 'function') { gtag('event', 'add_to_cart', addToCartData.ecommerce); } else { window.dataLayer.push(addToCartData); }
             console.log(' DataLayer Event Fired:', addToCartData);
         });
     }

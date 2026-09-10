@@ -16,7 +16,7 @@ from google.genai import types as genai_types
 
 import duckdb
 import cloudinary.uploader
-from flask import (Flask, render_template, request, redirect, url_for,
+from flask import (Flask, render_template, request, redirect, url_for,, session
                    session, flash, jsonify, abort)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -1628,6 +1628,55 @@ Disallow: /cart
 Sitemap: {domain}/sitemap.xml
 """
     return app.response_class(content, mimetype='text/plain')
+
+
+# ---------- Cart Routes ----------
+@app.route("/cart/add/<int:product_id>", methods=["POST"])
+def add_to_cart(product_id):
+    quantity = int(request.form.get('quantity', 1))
+    if 'cart' not in session:
+        session['cart'] = {}
+    
+    pid_str = str(product_id)
+    if pid_str in session['cart']:
+        session['cart'][pid_str] += quantity
+    else:
+        session['cart'][pid_str] = quantity
+    
+    session.modified = True
+    flash("Item added to cart!", "success")
+    return redirect(request.referrer or url_for('cart'))
+
+@app.route("/cart")
+def cart():
+    cart_items = []
+    total = 0
+    cart = session.get('cart', {})
+    
+    for pid_str, qty in cart.items():
+        product = query_one("SELECT * FROM products WHERE id = ?", [int(pid_str)])
+        if product:
+            price = product['sale_price'] if product['sale_price'] else product['original_price']
+            item_total = price * qty
+            total += item_total
+            cart_items.append({
+                'product': product,
+                'quantity': qty,
+                'price': price,
+                'total': item_total
+            })
+            
+    return render_template("cart.html", cart_items=cart_items, total=total)
+
+@app.route("/cart/remove/<int:product_id>")
+def remove_from_cart(product_id):
+    if 'cart' in session:
+        pid_str = str(product_id)
+        if pid_str in session['cart']:
+            del session['cart'][pid_str]
+            session.modified = True
+    flash("Item removed from cart.", "info")
+    return redirect(url_for('cart'))
 
 def handler(request):
     return app(request.environ, lambda *args: None)

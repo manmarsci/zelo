@@ -1,55 +1,67 @@
 {% extends "base.html" %}
-{% block title %}Shopping Cart{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="container">
-    <h1>Shopping Cart</h1>
-
-    {% if items %}
-      <div class="cart-layout">
-        <div class="cart-items">
-          {% for it in items %}
-            <div class="cart-item">
-              <img src="{{ it.image or 'https://via.placeholder.com/120' }}" alt="{{ it.name }}" />
-              <div class="cart-item-info">
-                <a href="{{ url_for('product_detail', slug=it.slug) }}"><strong>{{ it.name }}</strong></a>
-                <div class="muted">
-                  {% if it.size %}Size: {{ it.size }}{% endif %}
-                  {% if it.color %} • Color: {{ it.color }}{% endif %}
+<div style="max-width:1000px; margin:0 auto; padding:2rem;">
+    <h1 style="text-align:center; color:#1a1a1a; margin-bottom:2rem;">Your Shopping Cart</h1>
+    
+    {% if cart_items %}
+    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:2rem;">
+        
+        <!-- Cart Items List -->
+        <div>
+            {% for item in cart_items %}
+            <div style="display:flex; gap:1.5rem; background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; margin-bottom:1rem; align-items:center;">
+                <img src="{{ item.product.image }}" alt="{{ item.product.name }}" style="width:100px; height:100px; object-fit:cover; border-radius:6px;">
+                
+                <div style="flex:1;">
+                    <h3 style="margin:0 0 0.5rem 0; color:#1a1a1a; font-size:1.1rem;">{{ item.product.name }}</h3>
+                    {% if item.product.brand_name %}
+                    <p style="margin:0; color:#888; font-size:0.9rem;">{{ item.product.brand_name }}</p>
+                    {% endif %}
+                    <p style="margin:0.5rem 0 0 0; color:#c9a961; font-weight:700;">PKR {{ "%.0f"|format(item.price) }}</p>
                 </div>
-                <div class="price-line">
-                  PKR {{ "%.0f"|format(it.sale_price or it.original_price) }}
+                
+                <div style="text-align:center;">
+                    <p style="margin:0 0 0.5rem 0; font-size:0.9rem; color:#666;">Qty: {{ item.quantity }}</p>
+                    <a href="/cart/remove/{{ item.product.id }}" style="color:#ef4444; text-decoration:none; font-size:0.85rem;">Remove</a>
                 </div>
-              </div>
-              <form method="post" action="{{ url_for('cart_update', cart_id=it.cart_id) }}" class="qty-selector">
-                <button type="button" onclick="this.form.querySelector('input').stepDown(); this.form.submit()">−</button>
-                <input type="number" name="quantity" value="{{ it.quantity }}" min="1" max="{{ it.stock }}" />
-                <button type="button" onclick="this.form.querySelector('input').stepUp(); this.form.submit()">+</button>
-              </form>
-              <div class="cart-item-total">
-                PKR {{ "%.0f"|format((it.sale_price or it.original_price) * it.quantity) }}
-              </div>
-              <form method="post" action="{{ url_for('cart_remove', cart_id=it.cart_id) }}">
-                <button type="submit" class="btn-link text-danger" title="Remove">✕</button>
-              </form>
+                
+                <div style="text-align:right; min-width:80px;">
+                    <p style="margin:0; font-weight:700; color:#1a1a1a;">PKR {{ "%.0f"|format(item.total) }}</p>
+                </div>
             </div>
-          {% endfor %}
+            {% endfor %}
         </div>
 
-        <aside class="cart-summary">
-          <h3>Order Summary</h3>
-          <div class="summary-row"><span>Subtotal</span><span>PKR {{ "%.0f"|format(subtotal) }}</span></div>
-          <div class="summary-row"><span>Delivery</span><span>{% if delivery == 0 %}FREE{% else %}PKR {{ "%.0f"|format(delivery) }}{% endif %}</span></div>
-          {% if delivery == 0 %}<p class="muted small">🎉 You qualified for free delivery!</p>{% endif %}
-          <div class="summary-row total"><span>Total</span><span>PKR {{ "%.0f"|format(total) }}</span></div>
-          <a href="{{ url_for('checkout') }}" class="btn btn-primary btn-block">Proceed to Checkout</a>
-          <a href="{{ url_for('products') }}" class="btn btn-outline btn-block">Continue Shopping</a>
-        </aside>
-      </div>
+        <!-- Order Summary -->
+        <div style="background:#fff; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; height:fit-content;">
+            <h3 style="margin-top:0; color:#1a1a1a; border-bottom:1px solid #e8e1d1; padding-bottom:1rem;">Order Summary</h3>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; color:#666;">
+                <span>Subtotal</span>
+                <span>PKR {{ "%.0f"|format(total) }}</span>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; color:#666;">
+                <span>Shipping</span>
+                <span>{{ "FREE" if total >= 5000 else "PKR 150" }}</span>
+            </div>
+            
+            <div style="border-top:1px solid #e8e1d1; padding-top:1rem; margin-top:1rem; display:flex; justify-content:space-between; font-weight:700; font-size:1.2rem; color:#1a1a1a;">
+                <span>Total</span>
+                <span>PKR {{ "%.0f"|format(total + (0 if total >= 5000 else 150)) }}</span>
+            </div>
+            
+            <a href="/checkout" class="btn btn-primary" style="display:block; text-align:center; background:#1a1a1a; color:#fff; text-decoration:none; padding:1rem; border-radius:6px; margin-top:1.5rem; font-weight:600;">Proceed to Checkout</a>
+            
+            <a href="/products" style="display:block; text-align:center; color:#666; text-decoration:none; margin-top:1rem; font-size:0.9rem;">Continue Shopping</a>
+        </div>
+    </div>
     {% else %}
-      <p class="empty">Your cart is empty.</p>
-      <a href="{{ url_for('products') }}" class="btn btn-primary">Start Shopping</a>
+    <div style="text-align:center; padding:4rem 2rem; background:#fff; border-radius:8px; border:1px solid #e8e1d1;">
+        <h2 style="color:#1a1a1a;">Your cart is empty</h2>
+        <p style="color:#666; margin-bottom:2rem;">Looks like you haven't added any premium leftovers yet!</p>
+        <a href="/products" class="btn btn-primary" style="background:#1a1a1a; color:#fff; text-decoration:none; padding:12px 30px; border-radius:6px;">Start Shopping</a>
+    </div>
     {% endif %}
-  </div>
-</section>
+</div>
 {% endblock %}

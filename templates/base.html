@@ -175,10 +175,12 @@
   <header class="header">
     <div class="container header-inner">
       <button class="menu-toggle" aria-label="Menu">☰</button>
-      <a href="{{ url_for('index') }}" class="logo">
-        <span class="logo-mark">Z</span>
-        <span class="logo-text">ZELO LIVE<br><small>BOUTIQUE</small></span>
-      </a>
+      <a href="/cart" style="position:relative; text-decoration:none; color:#1a1a1a; font-size:1.5rem; margin-left:1rem;">
+    🛍️
+    {% if session.get('cart') %}
+    <span style="position:absolute; top:-8px; right:-10px; background:#c9a961; color:#fff; font-size:0.7rem; font-weight:bold; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">{{ session['cart']|length }}</span>
+    {% endif %}
+</a>
       <nav class="nav" id="mainNav" aria-label="Main Navigation">
         <a href="{{ url_for('index') }}">Home</a>
         <a href="{{ url_for('products', sort='newest') }}">New Arrivals</a>
@@ -345,7 +347,7 @@ document.addEventListener('click', function(e) {
 
     if (eventType) {
         const pushData = { event: eventType, ...eventData };
-        window.dataLayer.push(pushData);
+        if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
         console.log('️ Click Event Fired:', pushData);
     }
 });
@@ -367,11 +369,11 @@ window.onYouTubeIframeAPIReady = function() {
                             var videoData = player.getVideoData();
                             if (event.data === YT.PlayerState.PLAYING) {
                                 var pushData = { event: 'video_start', video_provider: 'youtube', video_title: videoData.title, video_id: videoData.video_id };
-                                window.dataLayer.push(pushData);
+                                if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
                                 console.log('▶️ Video Event Fired:', pushData);
                             } else if (event.data === YT.PlayerState.ENDED) {
                                 var pushData = { event: 'video_complete', video_provider: 'youtube', video_title: videoData.title };
-                                window.dataLayer.push(pushData);
+                                if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
                                 console.log('⏹️ Video Event Fired:', pushData);
                             }
                         } catch(err) { console.error('YT Event Error:', err); }
