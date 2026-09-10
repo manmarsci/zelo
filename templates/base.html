@@ -105,6 +105,22 @@
     .container, main, div[style*="max-width"] { max-width: 100% !important; padding: 0 1rem !important; box-sizing: border-box !important; }
 }
 </style>
+
+<!-- Google Analytics 4 (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QW9LFHDT41"></script>
+<script>
+  // Initialize dataLayer and gtag
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  
+  // Initialize GA4
+  gtag('js', new Date());
+  gtag('config', 'G-QW9LFHDT41', {
+    'send_page_view': true,
+    'anonymize_ip': true
+  });
+</script>
+
 </head>
 <body>
 <!-- Running Top Banner -->
