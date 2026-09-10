@@ -25,7 +25,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:title" content="{% block og_title %}ZELO LIVE BOUTIQUE{% endblock %}" />
   <meta property="og:description" content="{% block og_desc %}Premium branded leftover unstitched suits, patches & laces in Pakistan.{% endblock %}" />
-  <meta property="og:image" content="https://res.cloudinary.com/your-cloud-name/image/upload/v1/zelo_boutique/og_image.jpg" /> <!-- Replace with your actual OG image URL -->
+  <meta property="og:image" content="https://res.cloudinary.com/your-cloud-name/image/upload/v1/zelo_boutique/og_image.jpg" />
   <meta property="og:url" content="{{ request.url }}" />
   <meta property="og:locale" content="en_PK" />
 
@@ -168,17 +168,14 @@
     }
 </style>
 
-  <!-- Announcement bar -->
-  
-
   <!-- Header -->
   <header class="header">
     <div class="container header-inner">
       <button class="menu-toggle" aria-label="Menu">☰</button>
-      <a href="/cart" style="position:relative; text-decoration:none; color:#1a1a1a; font-size:1.5rem; margin-left:1rem;">
+      <a href="{{ url_for('cart') }}" style="position:relative; text-decoration:none; color:#1a1a1a; font-size:1.5rem; margin-left:1rem;">
     🛍️
-    {% if session.get('cart') %}
-    <span style="position:absolute; top:-8px; right:-10px; background:#c9a961; color:#fff; font-size:0.7rem; font-weight:bold; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">{{ session['cart']|length }}</span>
+    {% if cart_count %}
+    <span style="position:absolute; top:-8px; right:-10px; background:#c9a961; color:#fff; font-size:0.7rem; font-weight:bold; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">{{ cart_count }}</span>
     {% endif %}
 </a>
       <nav class="nav" id="mainNav" aria-label="Main Navigation">
@@ -191,12 +188,9 @@
         <form class="search-form" action="{{ url_for('products') }}" method="get" role="search">
           <input type="search" name="q" placeholder="Search suits, patches, laces..." value="{{ request.args.get('q','') }}" aria-label="Search products" />
         </form>
-      <a href="{{ url_for('cart') }}" style="position:relative; text-decoration:none; color:#1a1a1a; font-size:1.5rem; margin-left:1rem;">
-    🛍️
-    {% if cart_count %}
-    <span style="position:absolute; top:-8px; right:-10px; background:#c9a961; color:#fff; font-size:0.7rem; font-weight:bold; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">{{ cart_count }}</span>
-    {% endif %}
-</a>
+        <a href="{{ url_for('cart') }}" class="icon-btn" title="Cart">
+          🛍 <span class="badge">{{ cart_count }}</span>
+        </a>
         {% if current_user %}
           <a href="{{ url_for('account') }}" class="icon-btn" title="Account">👤</a>
           {% if current_user.role == 'admin' %}
@@ -313,18 +307,24 @@
 </footer>
 
 
-
-
-
-<!-- Pure DataLayer Events (Debug Enabled) -->
+<!-- DataLayer Events (GA4) -->
 <script>
 window.dataLayer = window.dataLayer || [];
+
+function pushGaEvent(eventType, eventData) {
+    eventData = eventData || {};
+    if (typeof gtag === 'function') {
+        gtag('event', eventType, eventData);
+    } else {
+        window.dataLayer.push(Object.assign({ event: eventType }, eventData));
+    }
+}
 
 // 1. Outbound & Interaction Click Tracking
 document.addEventListener('click', function(e) {
     const target = e.target.closest('a');
     if (!target || !target.href) return;
-    
+
     const href = target.href;
     let eventType = null;
     let eventData = {};
@@ -349,9 +349,8 @@ document.addEventListener('click', function(e) {
     }
 
     if (eventType) {
-        const pushData = { event: eventType, ...eventData };
-        if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
-        console.log('️ Click Event Fired:', pushData);
+        pushGaEvent(eventType, eventData);
+        console.log('Click Event Fired:', eventType, eventData);
     }
 });
 
@@ -364,20 +363,18 @@ window.onYouTubeIframeAPIReady = function() {
             if (src.indexOf('enablejsapi=1') === -1) {
                 iframe.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'enablejsapi=1&origin=' + window.location.origin;
             }
-            
+
             var player = new YT.Player(iframe, {
                 events: {
                     'onStateChange': function(event) {
                         try {
                             var videoData = player.getVideoData();
                             if (event.data === YT.PlayerState.PLAYING) {
-                                var pushData = { event: 'video_start', video_provider: 'youtube', video_title: videoData.title, video_id: videoData.video_id };
-                                if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
-                                console.log('▶️ Video Event Fired:', pushData);
+                                pushGaEvent('video_start', { video_provider: 'youtube', video_title: videoData.title, video_id: videoData.video_id });
+                                console.log('Video Event Fired: video_start', videoData.title);
                             } else if (event.data === YT.PlayerState.ENDED) {
-                                var pushData = { event: 'video_complete', video_provider: 'youtube', video_title: videoData.title };
-                                if (typeof gtag === 'function') { gtag('event', eventType, eventData); } else { if (typeof gtag === 'function') { gtag('event', pushData.event, pushData); } else { window.dataLayer.push(pushData); } }
-                                console.log('⏹️ Video Event Fired:', pushData);
+                                pushGaEvent('video_complete', { video_provider: 'youtube', video_title: videoData.title });
+                                console.log('Video Event Fired: video_complete', videoData.title);
                             }
                         } catch(err) { console.error('YT Event Error:', err); }
                     }

@@ -1,176 +1,252 @@
 {% extends "base.html" %}
 {% block content %}
-<div style="max-width:1200px; margin:0 auto; padding:2rem;">
-    
+<style>
+.pp-container { max-width:1200px; margin:0 auto; padding:2rem; }
+.pp-breadcrumb { margin-bottom:1.5rem; color:#888; font-size:0.85rem; }
+.pp-breadcrumb a { color:#c9a961; text-decoration:none; }
+
+.pp-layout { display:grid; grid-template-columns:1fr 1fr; gap:3rem; }
+
+.pp-video-wrap { margin-bottom:1.5rem; position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.15); }
+.pp-video-wrap iframe { position:absolute; top:0; left:0; width:100%; height:100%; border-radius:12px; border:0; }
+.pp-video-badge { text-align:center; margin-bottom:1.5rem; }
+.pp-video-badge span { background:#ff0000; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+
+.pp-main-image { border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1); background:#f0f0f0; aspect-ratio:4/5; }
+.pp-main-image img { width:100%; height:100%; object-fit:cover; display:block; }
+.pp-no-image { background:#f0f0f0; border-radius:12px; padding:3rem 1.5rem; text-align:center; color:#999; }
+
+.pp-brand-badge span { background:#c9a961; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600; }
+.pp-title { color:#1a1a1a; font-size:1.9rem; margin:0.75rem 0 1rem 0; line-height:1.25; }
+
+.pp-price-box { margin-bottom:1.5rem; padding:1.25rem; background:#f9f9f9; border-radius:8px; border-left:4px solid #c9a961; }
+.pp-price-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+.pp-price-sale { font-size:1.8rem; font-weight:700; color:#c9a961; }
+.pp-price-old { font-size:1.1rem; color:#999; text-decoration:line-through; }
+.pp-price-save { background:#22c55e; color:#fff; padding:4px 12px; border-radius:4px; font-weight:600; font-size:0.85rem; }
+.pp-price-single { font-size:1.8rem; font-weight:700; color:#1a1a1a; }
+
+.pp-description { margin-bottom:1.5rem; }
+.pp-description h3 { color:#1a1a1a; font-size:1.1rem; margin-bottom:0.6rem; }
+.pp-description p { color:#666; line-height:1.7; font-size:.95rem; }
+
+.pp-stock { margin-bottom:1.5rem; padding:.9rem 1rem; background:#f0fdf4; border-radius:8px; border-left:4px solid #22c55e; display:flex; align-items:center; gap:.75rem; }
+.pp-stock strong { color:#166534; display:block; font-size:.95rem; }
+.pp-stock span { color:#666; font-size:.85rem; }
+
+.pp-form { margin-bottom:1.5rem; }
+.pp-form .option-group { margin-bottom:1.25rem; }
+.pp-form .option-group > label { display:block; font-weight:600; color:#1a1a1a; margin-bottom:.6rem; font-size:.9rem; text-transform:uppercase; letter-spacing:.5px; }
+
+.pp-qty-row { display:flex; gap:.75rem; align-items:stretch; }
+.pp-qty-row input[type=number] { width:90px; flex:0 0 90px; padding:0 .5rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem; text-align:center; }
+.pp-add-btn { flex:1; padding:.9rem; background:#1a1a1a; color:#fff; border:none; border-radius:6px; font-size:1.05rem; font-weight:600; cursor:pointer; transition:background .2s; }
+.pp-add-btn:hover { background:#c9a961; }
+
+.pp-trust { border-top:1px solid #e8e1d1; padding-top:1.25rem; }
+.pp-trust-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.pp-trust-item { display:flex; align-items:center; gap:.6rem; color:#666; font-size:.85rem; }
+
+.pp-video-section { margin-top:3rem; background:#1a1a1a; border-radius:12px; padding:2.5rem 1.5rem; color:#fff; text-align:center; }
+.pp-video-section h2 { color:#c9a961; margin-bottom:.75rem; font-size:1.7rem; }
+.pp-video-section p { color:#ddd; margin-bottom:1.5rem; max-width:600px; margin-left:auto; margin-right:auto; }
+.pp-video-section-frame { position:relative; padding-bottom:56.25%; height:0; max-width:800px; margin:0 auto; border-radius:12px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
+.pp-video-section-frame iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:12px; }
+
+.pp-bundle { margin-top:2.5rem; background:#fff; border:1px solid #e8e1d1; border-radius:12px; padding:1.75rem; }
+.pp-bundle h3 { color:#1a1a1a; margin-bottom:1.25rem; font-size:1.3rem; }
+
+.pp-mobile-cta { display:none; }
+
+/* ============ Mobile ============ */
+@media (max-width: 900px) {
+  .pp-container { padding:1rem 1rem 1.5rem; }
+  .pp-layout { grid-template-columns:1fr; gap:1.5rem; }
+  .pp-title { font-size:1.45rem; }
+  .pp-price-sale, .pp-price-single { font-size:1.4rem; }
+  .pp-trust-grid { grid-template-columns:1fr 1fr; }
+  .pp-video-section { padding:1.75rem 1rem; }
+  .pp-video-section h2 { font-size:1.3rem; }
+
+  /* Sticky add-to-cart bar */
+  .pp-mobile-cta {
+    display:flex;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#fff; border-top:1px solid #e8e1d1;
+    padding:.75rem 1rem; gap:.75rem; align-items:center;
+    box-shadow:0 -4px 14px rgba(0,0,0,.08); z-index:200;
+  }
+  .pp-mobile-cta .pp-mobile-price { flex:0 0 auto; font-weight:700; color:#1a1a1a; font-size:1rem; white-space:nowrap; }
+  .pp-mobile-cta button { flex:1; padding:.85rem; background:#1a1a1a; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:.95rem; cursor:pointer; }
+  body { padding-bottom:74px; }
+  .whatsapp-float { bottom:90px !important; }
+}
+</style>
+
+<div class="pp-container">
+
     <!-- Breadcrumb -->
-    <div style="margin-bottom:2rem; color:#888; font-size:0.9rem;">
-        <a href="/" style="color:#c9a961; text-decoration:none;">Home</a> / 
-        <a href="/products" style="color:#c9a961; text-decoration:none;">Shop</a> / 
-        <span style="color:#1a1a1a;">{{ product.name }}</span>
+    <div class="pp-breadcrumb">
+        <a href="/">Home</a> / <a href="/products">Shop</a> / <span style="color:#1a1a1a;">{{ product.name }}</span>
     </div>
 
-    <div class="product-main-layout" style="display:grid; grid-template-columns: 1fr 1fr; gap:3rem;">
-        
-        <!-- Left Column: Media (Images + Video) -->
-        <div class="product-media">
+    <div class="pp-layout">
+
+        <!-- Left Column: Media -->
+        <div class="pp-media">
             {% if product.video_url %}
-            <!-- Video Section -->
-            <div class="video-showcase" style="margin-bottom:2rem; position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
-                <iframe 
-                    src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}" 
-                    frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowfullscreen
-                    style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:12px;">
-                </iframe>
+            <div class="pp-video-wrap">
+                <iframe src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
             </div>
-            <div style="text-align:center; margin-bottom:1.5rem;">
-                <span style="background:#ff0000; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+            <div class="pp-video-badge">
+                <span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                     Watch Product Video
                 </span>
             </div>
             {% endif %}
-            
-            <!-- Product Image -->
+
             {% if product.image %}
-            <div style="border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <img src="{{ product.image }}" alt="{{ product.name }}" style="width:100%; height:auto; display:block;">
+            <div class="pp-main-image">
+                <img src="{{ product.image }}" alt="{{ product.name }}" />
             </div>
             {% else %}
-            <div style="background:#f0f0f0; border-radius:12px; padding:4rem 2rem; text-align:center; color:#999;">
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:1rem;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <div class="pp-no-image">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:.75rem;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <p>No image available</p>
             </div>
             {% endif %}
         </div>
 
-        <!-- Right Column: Product Details -->
-        <div class="product-details">
-            <!-- Brand Badge -->
+        <!-- Right Column: Details -->
+        <div class="pp-details">
             {% if product.brand_name %}
-            <div style="margin-bottom:1rem;">
-                <span style="background:#c9a961; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600;">{{ product.brand_name }}</span>
-            </div>
+            <div class="pp-brand-badge"><span>{{ product.brand_name }}</span></div>
             {% endif %}
 
-            <!-- Product Title -->
-            <h1 style="color:#1a1a1a; font-size:2rem; margin:0 0 1rem 0; line-height:1.2;">{{ product.name }}</h1>
+            <h1 class="pp-title">{{ product.name }}</h1>
 
-            <!-- Price -->
-            <div style="margin-bottom:1.5rem; padding:1.5rem; background:#f9f9f9; border-radius:8px; border-left:4px solid #c9a961;">
+            <div class="pp-price-box">
                 {% if product.sale_price %}
-                <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-                    <span style="font-size:2rem; font-weight:700; color:#c9a961;">PKR {{ "%.0f"|format(product.sale_price) }}</span>
-                    <span style="font-size:1.2rem; color:#999; text-decoration:line-through;">PKR {{ "%.0f"|format(product.original_price) }}</span>
-                    <span style="background:#22c55e; color:#fff; padding:4px 12px; border-radius:4px; font-weight:600; font-size:0.9rem;">
-                        Save {{ "%.0f"|format(((product.original_price - product.sale_price) / product.original_price * 100)) }}%
-                    </span>
+                <div class="pp-price-row">
+                    <span class="pp-price-sale">PKR {{ "%.0f"|format(product.sale_price) }}</span>
+                    <span class="pp-price-old">PKR {{ "%.0f"|format(product.original_price) }}</span>
+                    <span class="pp-price-save">Save {{ "%.0f"|format(((product.original_price - product.sale_price) / product.original_price * 100)) }}%</span>
                 </div>
                 {% else %}
-                <span style="font-size:2rem; font-weight:700; color:#1a1a1a;">PKR {{ "%.0f"|format(product.original_price) }}</span>
+                <span class="pp-price-single">PKR {{ "%.0f"|format(product.original_price) }}</span>
                 {% endif %}
             </div>
 
-            <!-- Description -->
             {% if product.description %}
-            <div style="margin-bottom:2rem;">
-                <h3 style="color:#1a1a1a; font-size:1.2rem; margin-bottom:0.75rem;">Product Details</h3>
-                <p style="color:#666; line-height:1.8;">{{ product.description }}</p>
+            <div class="pp-description">
+                <h3>Product Details</h3>
+                <p>{{ product.description }}</p>
             </div>
             {% endif %}
 
-            <!-- Stock Status -->
-            <div style="margin-bottom:2rem; padding:1rem; background:#f0fdf4; border-radius:8px; border-left:4px solid #22c55e;">
-                <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                    <div>
-                        <strong style="color:#166534; display:block;">In Stock</strong>
-                        <span style="color:#666; font-size:0.9rem;">{{ product.stock }} pieces available</span>
-                    </div>
+            <div class="pp-stock">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <div>
+                    <strong>{{ "In Stock" if product.stock > 0 else "Out of Stock" }}</strong>
+                    <span>{{ product.stock }} pieces available</span>
                 </div>
             </div>
 
             <!-- Add to Cart Form -->
-            <form method="post" action="{{ url_for('cart_add') }}" style="margin-bottom:2rem;">
+            <form method="post" action="{{ url_for('cart_add') }}" class="pp-form" id="addToCartForm">
                 <input type="hidden" name="product_id" value="{{ product.id }}" />
 
-                <!-- Size Selection (if available) -->
                 {% if product.sizes_list %}
-                <div style="margin-bottom:1.5rem;">
-                    <label style="display:block; font-weight:600; color:#1a1a1a; margin-bottom:0.5rem;">Select Size</label>
-                    <select name="size" required style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem;">
-                        <option value="">Choose a size</option>
+                <div class="option-group">
+                    <label>Select Size</label>
+                    <div class="size-options">
                         {% for size in product.sizes_list %}
-                        <option value="{{ size }}">{{ size }}</option>
+                        <label class="size-chip">
+                            <input type="radio" name="size" value="{{ size }}" {{ 'checked' if loop.first }} required>
+                            {{ size }}
+                        </label>
                         {% endfor %}
-                    </select>
+                    </div>
                 </div>
                 {% endif %}
 
-                <!-- Quantity -->
-                <div style="margin-bottom:1.5rem;">
-                    <label style="display:block; font-weight:600; color:#1a1a1a; margin-bottom:0.5rem;">Quantity</label>
-                    <div style="display:flex; gap:1rem;">
-                        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" required style="flex:1; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem;">
-                        <button type="submit" class="btn btn-primary" style="flex:2; padding:0.75rem; background:#1a1a1a; color:#fff; border:none; border-radius:6px; font-size:1.1rem; font-weight:600; cursor:pointer;">
-                            Add to Cart
-                        </button>
+                {% if product.colors_list %}
+                <div class="option-group">
+                    <label>Select Color</label>
+                    <div class="size-options">
+                        {% for color in product.colors_list %}
+                        <label class="size-chip">
+                            <input type="radio" name="color" value="{{ color }}" {{ 'checked' if loop.first }}>
+                            {{ color }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="option-group">
+                    <label>Quantity</label>
+                    <div class="pp-qty-row">
+                        <input type="number" id="qtyInput" name="quantity" value="1" min="1" max="{{ product.stock }}" required />
+                        <button type="submit" class="pp-add-btn">Add to Cart</button>
                     </div>
                 </div>
             </form>
 
             <!-- Trust Badges -->
-            <div style="border-top:1px solid #e8e1d1; padding-top:1.5rem;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                        <span style="color:#666; font-size:0.9rem;">Secure Payment</span>
+            <div class="pp-trust">
+                <div class="pp-trust-grid">
+                    <div class="pp-trust-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                        Secure Payment
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                        <span style="color:#666; font-size:0.9rem;">Authentic Products</span>
+                    <div class="pp-trust-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        Authentic Products
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span style="color:#666; font-size:0.9rem;">Easy Returns</span>
+                    <div class="pp-trust-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Easy Returns
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                        <span style="color:#666; font-size:0.9rem;">Fast Delivery</span>
+                    <div class="pp-trust-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        Fast Delivery
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Video Showcase Section (if video exists) -->
+    <!-- Video Showcase Section -->
     {% if product.video_url %}
-    <div style="margin-top:4rem; background:#1a1a1a; border-radius:12px; padding:3rem 2rem; color:#fff;">
-        <h2 style="text-align:center; color:#c9a961; margin-bottom:1rem; font-size:2rem;">See It In Action</h2>
-        <p style="text-align:center; color:#ddd; margin-bottom:2rem; max-width:600px; margin-left:auto; margin-right:auto;">
-            Watch the video to see the actual fabric quality, color, and design details of this product.
-        </p>
-        <div style="position:relative; padding-bottom:56.25%; height:0; max-width:800px; margin:0 auto; border-radius:12px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
-            <iframe 
-                src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}" 
-                frameborder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowfullscreen
-                style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:12px;">
-            </iframe>
+    <div class="pp-video-section">
+        <h2>See It In Action</h2>
+        <p>Watch the video to see the actual fabric quality, color, and design details of this product.</p>
+        <div class="pp-video-section-frame">
+            <iframe src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
         </div>
     </div>
     {% endif %}
 
-    <!-- Bundle Information (for leftover suits) -->
+    <!-- Bundle Information -->
     {% if product.bundle_info %}
-    <div style="margin-top:3rem; background:#fff; border:1px solid #e8e1d1; border-radius:12px; padding:2rem;">
-        <h3 style="color:#1a1a1a; margin-bottom:1.5rem; font-size:1.5rem;">What's Included in This Bundle</h3>
+    <div class="pp-bundle">
+        <h3>What's Included in This Bundle</h3>
         <div id="bundleDisplay"></div>
     </div>
     {% endif %}
 
+</div>
+
+<!-- Mobile sticky Add to Cart bar -->
+<div class="pp-mobile-cta">
+    <span class="pp-mobile-price">PKR {{ "%.0f"|format(product.sale_price or product.original_price) }}</span>
+    <button type="submit" form="addToCartForm">Add to Cart</button>
 </div>
 
 <script>
@@ -180,9 +256,8 @@ const bundleInfo = {{ product.bundle_info | safe }};
 const bundleDisplay = document.getElementById('bundleDisplay');
 
 if (bundleInfo) {
-    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem;">';
-    
-    // Show type badge
+    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.25rem;">';
+
     const typeLabels = {
         'complete_3pc': 'Complete 3-Piece Suit',
         'complete_4pc': 'Complete 4-Piece Suit',
@@ -190,15 +265,14 @@ if (bundleInfo) {
         'patches_laces': 'Patches & Laces Bundle',
         'standard': 'Standard Product'
     };
-    
-    html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px; border-left:4px solid #c9a961;">';
+
+    html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px; border-left:4px solid #c9a961;">';
     html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Product Type</strong>';
     html += '<span style="color:#666;">' + (typeLabels[bundleInfo.type] || bundleInfo.type) + '</span>';
     html += '</div>';
-    
-    // Show included pieces
+
     if (bundleInfo.pieces && bundleInfo.pieces.length > 0) {
-        html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px;">';
+        html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px;">';
         html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Included Pieces</strong>';
         html += '<ul style="margin:0; padding-left:1.2rem; color:#666;">';
         bundleInfo.pieces.forEach(piece => {
@@ -211,44 +285,37 @@ if (bundleInfo) {
             };
             html += '<li style="margin-bottom:0.4rem;">' + (pieceNames[piece] || piece) + '</li>';
         });
-        html += '</ul>';
-        html += '</div>';
+        html += '</ul></div>';
     }
-    
-    // Show measurements
+
     if (bundleInfo.measurements) {
         const measurements = bundleInfo.measurements;
         if (measurements.kameez || measurements.dupatta) {
-            html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px;">';
+            html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px;">';
             html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Measurements</strong>';
             if (measurements.kameez) html += '<div style="color:#666; margin-bottom:0.4rem;">Kameez: ' + measurements.kameez + '</div>';
             if (measurements.dupatta) html += '<div style="color:#666;">Dupatta: ' + measurements.dupatta + '</div>';
             html += '</div>';
         }
     }
-    
+
     html += '</div>';
     bundleDisplay.innerHTML = html;
 }
 {% endif %}
 
-// Helper function to extract YouTube video ID
 function getVideoId(url) {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : '';
 }
-
-
-
 </script>
-{% endblock %}
 
-<!-- E-commerce DataLayer Events (Debug Enabled) -->
+<!-- E-commerce DataLayer Events -->
 <script>
 window.dataLayer = window.dataLayer || [];
 
-// 1. View Item Event (fires immediately)
+// 1. View Item Event (fires on page load)
 var viewItemData = {
     event: 'view_item',
     ecommerce: {
@@ -263,18 +330,24 @@ var viewItemData = {
         }]
     }
 };
-if (typeof gtag === 'function') { gtag('event', 'view_item', viewItemData.ecommerce); } else { window.dataLayer.push(viewItemData); }
-console.log('✅ DataLayer Event Fired:', viewItemData);
+if (typeof gtag === 'function') {
+    gtag('event', 'view_item', viewItemData.ecommerce);
+} else {
+    window.dataLayer.push(viewItemData);
+}
+console.log('DataLayer Event Fired: view_item', viewItemData);
 
 // 2. Add to Cart Event
 document.addEventListener('DOMContentLoaded', function() {
-    const cartForm = document.querySelector('form[action*="/cart/add"]');
+    const cartForm = document.getElementById('addToCartForm');
     if (cartForm) {
         cartForm.addEventListener('submit', function() {
             const qtyInput = this.querySelector('input[name="quantity"]');
             const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+            const sizeInput = this.querySelector('input[name="size"]:checked');
+            const colorInput = this.querySelector('input[name="color"]:checked');
             const price = {{ product.sale_price if product.sale_price else product.original_price }};
-            
+
             var addToCartData = {
                 event: 'add_to_cart',
                 ecommerce: {
@@ -284,14 +357,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         item_id: '{{ product.id }}',
                         item_name: {{ product.name | tojson }},
                         item_brand: {{ product.brand_name | default("", true) | tojson }},
+                        item_variant: [sizeInput ? sizeInput.value : null, colorInput ? colorInput.value : null].filter(Boolean).join(' / '),
                         price: price,
                         quantity: qty
                     }]
                 }
             };
-            if (typeof gtag === 'function') { gtag('event', 'add_to_cart', addToCartData.ecommerce); } else { window.dataLayer.push(addToCartData); }
-            console.log(' DataLayer Event Fired:', addToCartData);
+            if (typeof gtag === 'function') {
+                gtag('event', 'add_to_cart', addToCartData.ecommerce);
+            } else {
+                window.dataLayer.push(addToCartData);
+            }
+            console.log('DataLayer Event Fired: add_to_cart', addToCartData);
         });
     }
 });
 </script>
+{% endblock %}
