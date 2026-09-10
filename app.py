@@ -1112,20 +1112,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # ---------- SEO Routes ----------
-@app.route("/robots.txt")
-def robots_txt():
-    # Dynamically generate robots.txt
-    domain = request.host_url.rstrip('/')
-    content = f"""User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /checkout
-Disallow: /account
-Disallow: /cart
-
-Sitemap: {domain}/sitemap.xml
-"""
-    return app.response_class(content, mimetype='text/plain')
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
@@ -1586,9 +1572,6 @@ def terms():
 
 
 # ---------- SEO: Sitemap & Robots.txt ----------
-@app.route("/robots.txt")
-def robots_txt():
-    return "User-agent: *\nAllow: /\nSitemap: https://zelo-theta-murex.vercel.app/sitemap.xml", 200, {'Content-Type': 'text/plain'}
 
 @app.route("/sitemap.xml")
 def sitemap():
@@ -1630,6 +1613,21 @@ def get_video_id(url):
 
 # Add to template context
 app.jinja_env.globals.update(get_video_id=get_video_id)
+
+@app.route("/robots.txt")
+def robots_txt():
+    # Dynamically generate robots.txt
+    domain = request.host_url.rstrip('/')
+    content = f"""User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /account
+Disallow: /cart
+
+Sitemap: {domain}/sitemap.xml
+"""
+    return app.response_class(content, mimetype='text/plain')
 
 def handler(request):
     return app(request.environ, lambda *args: None)
