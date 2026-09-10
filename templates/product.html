@@ -1,3 +1,27 @@
+
+<!-- JSON-LD Product Schema for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "{{ product.name }}",
+  "image": "{{ product.image if product.image else '' }}",
+  "description": "{{ product.description[:150] if product.description else '' }}",
+  "brand": {
+    "@type": "Brand",
+    "name": "{{ product.brand_name if product.brand_name else 'ZELO LIVE' }}"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "{{ request.url }}",
+    "priceCurrency": "PKR",
+    "price": "{{ product.sale_price if product.sale_price else product.original_price }}",
+    "availability": "https://schema.org/{% if product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
+    "itemCondition": "https://schema.org/NewCondition"
+  }
+}
+</script>
+
 {% extends "base.html" %}
 {% set price = product.sale_price or product.original_price %}
 {% set discount = (((product.original_price - price) / product.original_price) * 100)|round|int if product.sale_price else 0 %}

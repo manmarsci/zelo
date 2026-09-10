@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}ZELO LIVE BOUTIQUE — Branded Leftover Suits, Patches & Laces in Pakistan{% endblock %}</title>
+  <title>{{ page_title if page_title else 'ZELO LIVE BOUTIQUE | Premium Branded Leftover Suits' }}</title>
+    <meta name="description" content="{{ page_description if page_description else 'Shop premium branded leftover suits, patches, and accessories from top brands in Pakistan at unbeatable prices. Fast delivery.' }}">
+    <meta name="keywords" content="branded leftover suits, unstitched suits Pakistan, patches, Zelo Live, Gul Ahmed, Khaadi, Sapphire">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph for Social Media -->
+    <meta property="og:title" content="{{ page_title if page_title else 'ZELO LIVE BOUTIQUE' }}">
+    <meta property="og:description" content="{{ page_description if page_description else 'Premium branded leftover suits and accessories.' }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
   
   <!-- SEO Meta Tags -->
   <meta name="description" content="{% block meta_desc %}Shop premium branded leftover unstitched suits, designer patches, and premium laces in Pakistan. Authentic surplus stock at unbeatable prices. Cash on Delivery & JazzCash accepted.{% endblock %}" />
@@ -224,6 +233,7 @@
                 <h4 style="margin-top:0; color:#1a1a1a; font-size:1.1rem; margin-bottom:1.2rem;">Quick Links</h4>
                 <ul style="list-style:none; padding:0; margin:0;">
                     <li style="margin-bottom:0.8rem;"><a href="/" style="color:#666; text-decoration:none;">Home</a></li>
+                    <li style="margin-bottom:0.8rem;"><a href="/about" style="color:#666; text-decoration:none;">About Us</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/products" style="color:#666; text-decoration:none;">Shop All</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/products?sort=newest" style="color:#666; text-decoration:none;">New Arrivals</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/products?sort=discount" style="color:#666; text-decoration:none;">Sale</a></li>

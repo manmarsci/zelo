@@ -1583,5 +1583,39 @@ def privacy():
 def terms():
     return render_template("terms.html")
 
+
+# ---------- SEO: Sitemap & Robots.txt ----------
+@app.route("/robots.txt")
+def robots_txt():
+    return "User-agent: *\nAllow: /\nSitemap: https://zelo-theta-murex.vercel.app/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+
+@app.route("/sitemap.xml")
+def sitemap():
+    # Fetch all product slugs for the sitemap
+    products = query("SELECT slug, updated_at FROM products WHERE is_active = 1")
+    
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    
+    # Static Pages
+    static_pages = ['/', '/products', '/faq', '/shipping', '/returns', '/privacy', '/terms']
+    for page in static_pages:
+        xml += f'  <url><loc>https://zelo-theta-murex.vercel.app{page}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
+        
+    # Product Pages
+    if products:
+        for p in products:
+            slug = p['slug']
+            xml += f'  <url><loc>https://zelo-theta-murex.vercel.app/product/{slug}</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>\n'
+            
+    xml += '</urlset>'
+    return xml, 200, {'Content-Type': 'application/xml'}
+
+
+# ---------- About Us Page ----------
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
 def handler(request):
     return app(request.environ, lambda *args: None)
