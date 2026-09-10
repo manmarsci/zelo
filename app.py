@@ -18,6 +18,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.environ.get("FLASK_SECRET_KEY", "super-secret-key-for-sessions"))
 
+SITE_URL = os.getenv("SITE_URL", "https://zeloliveboutique.manmarsci.com").rstrip("/")
+app.jinja_env.globals.update(site_url=SITE_URL)
+
 DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
 
@@ -1462,7 +1465,6 @@ def terms():
 # ---------- SEO: Sitemap & Robots.txt ----------
 @app.route("/sitemap.xml")
 def sitemap():
-    domain = request.host_url.rstrip('/')
     products = query("SELECT slug, created_at FROM products WHERE is_active = TRUE")
     categories = query("SELECT slug FROM categories")
 
@@ -1480,15 +1482,15 @@ def sitemap():
         ('/terms', '0.3', 'yearly'),
     ]
     for page, priority, freq in static_pages:
-        xml += f'  <url><loc>{domain}{page}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>\n'
+        xml += f'  <url><loc>{SITE_URL}{page}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>\n'
 
     for c in categories:
-        xml += f'  <url><loc>{domain}/products?category={c["slug"]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
+        xml += f'  <url><loc>{SITE_URL}/products?category={c["slug"]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
 
     for p in products:
         lastmod = p['created_at'].strftime('%Y-%m-%d') if p.get('created_at') else ''
         lastmod_tag = f'<lastmod>{lastmod}</lastmod>' if lastmod else ''
-        xml += f'  <url><loc>{domain}/product/{p["slug"]}</loc>{lastmod_tag}<changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
+        xml += f'  <url><loc>{SITE_URL}/product/{p["slug"]}</loc>{lastmod_tag}<changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
 
     xml += '</urlset>'
     return app.response_class(xml, mimetype='application/xml')
@@ -1496,7 +1498,6 @@ def sitemap():
 
 @app.route("/robots.txt")
 def robots_txt():
-    domain = request.host_url.rstrip('/')
     content = f"""User-agent: *
 Allow: /
 Disallow: /admin/
@@ -1504,7 +1505,7 @@ Disallow: /checkout
 Disallow: /account
 Disallow: /cart
 
-Sitemap: {domain}/sitemap.xml
+Sitemap: {SITE_URL}/sitemap.xml
 """
     return app.response_class(content, mimetype='text/plain')
 
