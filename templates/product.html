@@ -1,225 +1,240 @@
-
-<!-- JSON-LD Product Schema for SEO -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org/",
-  "@type": "Product",
-  "name": "{{ product.name }}",
-  "image": "{{ product.image if product.image else '' }}",
-  "description": "{{ product.description[:150] if product.description else '' }}",
-  "brand": {
-    "@type": "Brand",
-    "name": "{{ product.brand_name if product.brand_name else 'ZELO LIVE' }}"
-  },
-  "offers": {
-    "@type": "Offer",
-    "url": "{{ request.url }}",
-    "priceCurrency": "PKR",
-    "price": "{{ product.sale_price if product.sale_price else product.original_price }}",
-    "availability": "https://schema.org/{% if product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
-    "itemCondition": "https://schema.org/NewCondition"
-  }
-}
-</script>
-
 {% extends "base.html" %}
-{% set price = product.sale_price or product.original_price %}
-{% set discount = (((product.original_price - price) / product.original_price) * 100)|round|int if product.sale_price else 0 %}
-
-{% block title %}{{ product.name }} — ZELO LIVE BOUTIQUE{% endblock %}
-
 {% block content %}
-<style>
-  .footer, .announcement { display: none !important; }
-</style>
-
-<section class="section">
-  <div class="container">
-    <nav class="breadcrumb">
-      <a href="{{ url_for('index') }}">Home</a> /
-      <a href="{{ url_for('products') }}">Shop</a> /
-      <span>{{ product.name }}</span>
-    </nav>
-
-    <div class="product-detail">
-      <!-- LEFT: Image Gallery -->
-      <div class="product-gallery">
-        {% set imgs = images if images else [{'image_url': 'https://via.placeholder.com/600x750?text=ZELO'}] %}
-        <div class="gallery-main">
-          <img id="mainImage" src="{{ imgs[0].image_url }}" alt="{{ product.name }}" />
-        </div>
-        {% if imgs|length > 1 %}
-          <div class="gallery-thumbs">
-            {% for img in imgs %}
-              <img src="{{ img.image_url }}" alt="" class="thumb {{ 'active' if loop.first }}" 
-                   onclick="document.getElementById('mainImage').src='{{ img.image_url }}'; document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active')); this.classList.add('active');" />
-            {% endfor %}
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- RIGHT: Product Summary -->
-      <div class="product-summary">
-        <div class="product-brand-line">{{ product.brand_name }} {% if product.category_name %}• {{ product.category_name }}{% endif %}</div>
-        <h1>{{ product.name }}</h1>
-
-        <div class="product-price-big">
-          {% if product.sale_price %}
-            <span class="price-sale">PKR {{ "%.0f"|format(product.sale_price) }}</span>
-            <span class="price-old">PKR {{ "%.0f"|format(product.original_price) }}</span>
-            <span class="badge-tag sale">-{{ discount }}%</span>
-          {% else %}
-            <span class="price-sale">PKR {{ "%.0f"|format(product.original_price) }}</span>
-          {% endif %}
-        </div>
-
-        {% if product.stock == 0 %}
-          <p class="text-danger"><strong>Out of stock</strong></p>
-        {% else %}
-          <p class="text-ok">✓ In stock {% if product.stock < 10 %}<span class="text-warn">(Only {{ product.stock }} left!)</span>{% endif %}</p>
-        {% endif %}
-
-        <form method="post" action="{{ url_for('cart_add') }}" class="buy-form">
-          <input type="hidden" name="product_id" value="{{ product.id }}" />
-
-          {% if product.sizes_list %}
-            <div class="option-group">
-              <label>Size</label>
-              <div class="size-options">
-                {% for s in product.sizes_list %}
-                  <label class="size-chip"><input type="radio" name="size" value="{{ s }}" {{ 'checked' if loop.first }}>{{ s }}</label>
-                {% endfor %}
-              </div>
-            </div>
-          {% endif %}
-
-          {% if product.colors_list %}
-            <div class="option-group">
-              <label>Color</label>
-              <div class="size-options">
-                {% for c in product.colors_list %}
-                  <label class="size-chip"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}>{{ c }}</label>
-                {% endfor %}
-              </div>
-            </div>
-          {% endif %}
-
-          <div class="qty-row">
-            <label>Quantity</label>
-            <div class="qty-selector">
-              <button type="button" onclick="adjustQty(-1)">−</button>
-              <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" id="qtyInput" />
-              <button type="button" onclick="adjustQty(1)">+</button>
-            </div>
-          </div>
-
-          <div class="buy-actions">
-            <button type="submit" class="btn btn-primary" {{ 'disabled' if product.stock==0 }}>Add to Cart</button>
-            <a href="#" class="btn btn-outline" onclick="document.getElementById('sizeGuideModal').style.display='flex'; return false;">Size Guide</a>
-          </div>
-        </form>
-
-        <!-- WhatsApp Order Button - with proper spacing -->
-        <div class="whatsapp-order-section">
-          <p class="whatsapp-label">Prefer to order via WhatsApp?</p>
-          <a href="https://wa.me/923214857054?text=Assalam%20O%20Alaikum!%20I%20want%20to%20order:%20{{ product.name }}.%20Please%20guide%20me." 
-             class="btn-whatsapp" target="_blank">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="margin-right:.5rem">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-            </svg>
-            ORDER ON WHATSAPP
-          </a>
-        </div>
-
-        <!-- Product Description -->
-        <div class="product-description-section">
-          <p><strong>Description:</strong> {{ product.description }}</p>
-          {% if product.fabric %}<p><strong>Fabric:</strong> {{ product.fabric }}</p>{% endif %}
-          {% if product.brand_name %}<p><strong>Brand:</strong> {{ product.brand_name }}</p>{% endif %}
-        </div>
-
-        <div class="trust-row">
-          <span> Fast delivery across Pakistan</span>
-          <span>💵 Cash on Delivery</span>
-          <span>✓ Authentic brand leftover</span>
-        </div>
-      </div>
+<div style="max-width:1200px; margin:0 auto; padding:2rem;">
+    
+    <!-- Breadcrumb -->
+    <div style="margin-bottom:2rem; color:#888; font-size:0.9rem;">
+        <a href="/" style="color:#c9a961; text-decoration:none;">Home</a> / 
+        <a href="/products" style="color:#c9a961; text-decoration:none;">Shop</a> / 
+        <span style="color:#1a1a1a;">{{ product.name }}</span>
     </div>
 
-    <!-- FULL-WIDTH FEATURES SECTION -->
-    {% if product.features_list %}
-    <div class="product-features-full">
-      <div class="container">
-        <h2 class="features-heading">Why You'll Love It</h2>
-        <div class="features-grid-full">
-          {% for f in product.features_list %}
-            <div class="feature-card">
-              <div class="feature-check">✓</div>
-              <h4>{{ f.title }}</h4>
-              <p>{{ f.desc }}</p>
+    <div class="product-main-layout" style="display:grid; grid-template-columns: 1fr 1fr; gap:3rem;">
+        
+        <!-- Left Column: Media (Images + Video) -->
+        <div class="product-media">
+            {% if product.video_url %}
+            <!-- Video Section -->
+            <div class="video-showcase" style="margin-bottom:2rem; position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
+                <iframe 
+                    src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:12px;">
+                </iframe>
             </div>
-          {% endfor %}
+            <div style="text-align:center; margin-bottom:1.5rem;">
+                <span style="background:#ff0000; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                    Watch Product Video
+                </span>
+            </div>
+            {% endif %}
+            
+            <!-- Product Image -->
+            {% if product.image %}
+            <div style="border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <img src="{{ product.image }}" alt="{{ product.name }}" style="width:100%; height:auto; display:block;">
+            </div>
+            {% else %}
+            <div style="background:#f0f0f0; border-radius:12px; padding:4rem 2rem; text-align:center; color:#999;">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:1rem;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <p>No image available</p>
+            </div>
+            {% endif %}
         </div>
-      </div>
+
+        <!-- Right Column: Product Details -->
+        <div class="product-details">
+            <!-- Brand Badge -->
+            {% if product.brand_name %}
+            <div style="margin-bottom:1rem;">
+                <span style="background:#c9a961; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600;">{{ product.brand_name }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Product Title -->
+            <h1 style="color:#1a1a1a; font-size:2rem; margin:0 0 1rem 0; line-height:1.2;">{{ product.name }}</h1>
+
+            <!-- Price -->
+            <div style="margin-bottom:1.5rem; padding:1.5rem; background:#f9f9f9; border-radius:8px; border-left:4px solid #c9a961;">
+                {% if product.sale_price %}
+                <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                    <span style="font-size:2rem; font-weight:700; color:#c9a961;">PKR {{ "%.0f"|format(product.sale_price) }}</span>
+                    <span style="font-size:1.2rem; color:#999; text-decoration:line-through;">PKR {{ "%.0f"|format(product.original_price) }}</span>
+                    <span style="background:#22c55e; color:#fff; padding:4px 12px; border-radius:4px; font-weight:600; font-size:0.9rem;">
+                        Save {{ "%.0f"|format(((product.original_price - product.sale_price) / product.original_price * 100)) }}%
+                    </span>
+                </div>
+                {% else %}
+                <span style="font-size:2rem; font-weight:700; color:#1a1a1a;">PKR {{ "%.0f"|format(product.original_price) }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            {% if product.description %}
+            <div style="margin-bottom:2rem;">
+                <h3 style="color:#1a1a1a; font-size:1.2rem; margin-bottom:0.75rem;">Product Details</h3>
+                <p style="color:#666; line-height:1.8;">{{ product.description }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Stock Status -->
+            <div style="margin-bottom:2rem; padding:1rem; background:#f0fdf4; border-radius:8px; border-left:4px solid #22c55e;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <div>
+                        <strong style="color:#166534; display:block;">In Stock</strong>
+                        <span style="color:#666; font-size:0.9rem;">{{ product.stock }} pieces available</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add to Cart Form -->
+            <form method="post" action="/cart/add/{{ product.id }}" style="margin-bottom:2rem;">
+                <!-- Size Selection (if available) -->
+                {% if product.sizes %}
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-weight:600; color:#1a1a1a; margin-bottom:0.5rem;">Select Size</label>
+                    <select name="size" required style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem;">
+                        <option value="">Choose a size</option>
+                        {% for size in product.sizes %}
+                        <option value="{{ size }}">{{ size }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Quantity -->
+                <div style="margin-bottom:1.5rem;">
+                    <label style="display:block; font-weight:600; color:#1a1a1a; margin-bottom:0.5rem;">Quantity</label>
+                    <div style="display:flex; gap:1rem;">
+                        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" required style="flex:1; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:2; padding:0.75rem; background:#1a1a1a; color:#fff; border:none; border-radius:6px; font-size:1.1rem; font-weight:600; cursor:pointer;">
+                            Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Trust Badges -->
+            <div style="border-top:1px solid #e8e1d1; padding-top:1.5rem;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                        <span style="color:#666; font-size:0.9rem;">Secure Payment</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <span style="color:#666; font-size:0.9rem;">Authentic Products</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span style="color:#666; font-size:0.9rem;">Easy Returns</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span style="color:#666; font-size:0.9rem;">Fast Delivery</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Showcase Section (if video exists) -->
+    {% if product.video_url %}
+    <div style="margin-top:4rem; background:#1a1a1a; border-radius:12px; padding:3rem 2rem; color:#fff;">
+        <h2 style="text-align:center; color:#c9a961; margin-bottom:1rem; font-size:2rem;">See It In Action</h2>
+        <p style="text-align:center; color:#ddd; margin-bottom:2rem; max-width:600px; margin-left:auto; margin-right:auto;">
+            Watch the video to see the actual fabric quality, color, and design details of this product.
+        </p>
+        <div style="position:relative; padding-bottom:56.25%; height:0; max-width:800px; margin:0 auto; border-radius:12px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <iframe 
+                src="https://www.youtube.com/embed/{{ get_video_id(product.video_url) }}" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen
+                style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:12px;">
+            </iframe>
+        </div>
     </div>
     {% endif %}
 
-    {% if related %}
-      <div class="section-head" style="margin-top:3rem">
-        <h2>You May Also Like</h2>
-      </div>
-      <div class="product-grid">
-        {% for p in related %}
-          {% include "_product_card.html" %}
-        {% endfor %}
-      </div>
+    <!-- Bundle Information (for leftover suits) -->
+    {% if product.bundle_info %}
+    <div style="margin-top:3rem; background:#fff; border:1px solid #e8e1d1; border-radius:12px; padding:2rem;">
+        <h3 style="color:#1a1a1a; margin-bottom:1.5rem; font-size:1.5rem;">What's Included in This Bundle</h3>
+        <div id="bundleDisplay"></div>
+    </div>
     {% endif %}
-  </div>
-</section>
 
-<!-- Size guide modal -->
-<div id="sizeGuideModal" class="modal" style="display:none" onclick="if(event.target===this) this.style.display='none'">
-  <div class="modal-content">
-    <button class="modal-close" onclick="this.parentElement.style.display='none'">×</button>
-    <h3>Size Guide</h3>
-    <table class="size-table">
-      <tr><th>Size</th><th>Bust (in)</th><th>Waist (in)</th><th>Hips (in)</th></tr>
-      <tr><td>S</td><td>32-34</td><td>26-28</td><td>34-36</td></tr>
-      <tr><td>M</td><td>34-36</td><td>28-30</td><td>36-38</td></tr>
-      <tr><td>L</td><td>36-38</td><td>30-32</td><td>38-40</td></tr>
-      <tr><td>XL</td><td>38-40</td><td>32-34</td><td>40-42</td></tr>
-    </table>
-    <p class="muted">Measurements are approximate. For unstitched, fabric length is provided as per brand standard.</p>
-  </div>
 </div>
 
-<!-- Product Schema for SEO & GEO -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org/",
-  "@type": "Product",
-  "name": "{{ product.name }}",
-  "image": [
-    {% for img in images %}"{{ img.image_url }}"{% if not loop.last %},{% endif %}{% endfor %}
-  ],
-  "description": "{{ product.description }}",
-  "sku": "{{ product.slug }}",
-  "brand": {
-    "@type": "Brand",
-    "name": "{{ product.brand_name or 'ZELO LIVE BOUTIQUE' }}"
-  },
-  "offers": {
-    "@type": "Offer",
-    "url": "{{ request.url }}",
-    "priceCurrency": "PKR",
-    "price": "{{ product.sale_price or product.original_price }}",
-    "itemCondition": "https://schema.org/NewCondition",
-    "availability": "{% if product.stock > 0 %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
-    "seller": {
-      "@type": "Organization",
-      "name": "ZELO LIVE BOUTIQUE"
+<script>
+// Display bundle information if available
+{% if product.bundle_info %}
+const bundleInfo = {{ product.bundle_info | safe }};
+const bundleDisplay = document.getElementById('bundleDisplay');
+
+if (bundleInfo) {
+    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem;">';
+    
+    // Show type badge
+    const typeLabels = {
+        'complete_3pc': 'Complete 3-Piece Suit',
+        'complete_4pc': 'Complete 4-Piece Suit',
+        'incomplete': 'Incomplete/Single Piece',
+        'patches_laces': 'Patches & Laces Bundle',
+        'standard': 'Standard Product'
+    };
+    
+    html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px; border-left:4px solid #c9a961;">';
+    html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Product Type</strong>';
+    html += '<span style="color:#666;">' + (typeLabels[bundleInfo.type] || bundleInfo.type) + '</span>';
+    html += '</div>';
+    
+    // Show included pieces
+    if (bundleInfo.pieces && bundleInfo.pieces.length > 0) {
+        html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px;">';
+        html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Included Pieces</strong>';
+        html += '<ul style="margin:0; padding-left:1.2rem; color:#666;">';
+        bundleInfo.pieces.forEach(piece => {
+            const pieceNames = {
+                'kameez': 'Kameez (Shirt)',
+                'dupatta': 'Dupatta',
+                'shalwar': 'Shalwar/Trouser',
+                'patches': 'Patches',
+                'laces': 'Laces'
+            };
+            html += '<li style="margin-bottom:0.4rem;">' + (pieceNames[piece] || piece) + '</li>';
+        });
+        html += '</ul>';
+        html += '</div>';
     }
-  }
+    
+    // Show measurements
+    if (bundleInfo.measurements) {
+        const measurements = bundleInfo.measurements;
+        if (measurements.kameez || measurements.dupatta) {
+            html += '<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px;">';
+            html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Measurements</strong>';
+            if (measurements.kameez) html += '<div style="color:#666; margin-bottom:0.4rem;">Kameez: ' + measurements.kameez + '</div>';
+            if (measurements.dupatta) html += '<div style="color:#666;">Dupatta: ' + measurements.dupatta + '</div>';
+            html += '</div>';
+        }
+    }
+    
+    html += '</div>';
+    bundleDisplay.innerHTML = html;
+}
+{% endif %}
+
+// Helper function to extract YouTube video ID
+function getVideoId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : '';
 }
 </script>
 {% endblock %}

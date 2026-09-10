@@ -700,7 +700,8 @@ def admin_product_form(pid=None):
             f.get("is_sale") == "on",
             f.get("is_active") == "on",
             features_json,
-            bundle_info
+            bundle_info,
+            f.get("video_url", "").strip()
         ]
 
         if product:
@@ -708,7 +709,7 @@ def admin_product_form(pid=None):
                 UPDATE products SET name=?, slug=?, description=?, fabric=?,
                     brand_id=?, category_id=?, original_price=?, sale_price=?,
                     stock=?, sizes=?, colors=?, is_new_arrival=?, is_popular=?,
-                    is_sale=?, is_active=?, features=?, bundle_info=?
+                    is_sale=?, is_active=?, features=?, bundle_info=?, video_url=?
                 WHERE id=?
             """, data + [pid])
             flash("Product updated.", "success")
@@ -717,8 +718,8 @@ def admin_product_form(pid=None):
                 INSERT INTO products
                 (name, slug, description, fabric, brand_id, category_id,
                  original_price, sale_price, stock, sizes, colors,
-                 is_new_arrival, is_popular, is_sale, is_active, features, bundle_info)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 is_new_arrival, is_popular, is_sale, is_active, features, bundle_info, video_url)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, data)
             new_p = query_one("SELECT id FROM products WHERE slug = ?", [slug])
             pid = new_p["id"]
@@ -1616,6 +1617,19 @@ def sitemap():
 @app.route("/about")
 def about():
     return render_template("about.html")
+
+
+def get_video_id(url):
+    """Extract YouTube video ID from URL"""
+    if not url:
+        return ''
+    import re
+    reg_exp = re.compile(r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})')
+    match = reg_exp.search(url)
+    return match.group(1) if match else ''
+
+# Add to template context
+app.jinja_env.globals.update(get_video_id=get_video_id)
 
 def handler(request):
     return app(request.environ, lambda *args: None)

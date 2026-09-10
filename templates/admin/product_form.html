@@ -196,7 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
 
-</form>
+
+        <div style="margin-bottom:1.5rem;">
+          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">YouTube Video URL</label>
+          <input type="url" name="video_url" value="{{ product.video_url if product and product.video_url else '' }}" placeholder="https://www.youtube.com/watch?v=..." style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+          <p class="muted small" style="margin-top:.4rem;">Paste YouTube video link to showcase the actual product fabric and details</p>
+        </div>
+
+  </form>
 
 <script>
 function addImageUrlField() {
