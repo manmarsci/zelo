@@ -291,5 +291,95 @@
     </div>
 </footer>
 
+
+<!-- Pure DataLayer Events (No GTM/GA4) -->
+<script>
+// 1. Initialize DataLayer
+window.dataLayer = window.dataLayer || [];
+
+// 2. Outbound & Interaction Click Tracking
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('a');
+    if (!target || !target.href) return;
+    
+    const href = target.href;
+    let eventType = null;
+    let eventData = {};
+
+    if (href.startsWith('tel:')) {
+        eventType = 'phone_click';
+        eventData = { phone_number: href.replace('tel:', '') };
+    } else if (href.startsWith('mailto:')) {
+        eventType = 'email_click';
+        eventData = { email_address: href.replace('mailto:', '') };
+    } else if (href.includes('wa.me') || href.includes('whatsapp.com')) {
+        eventType = 'whatsapp_click';
+    } else if (href.includes('instagram.com')) {
+        eventType = 'instagram_click';
+    } else if (href.includes('facebook.com')) {
+        eventType = 'facebook_click';
+    } else if (href.includes('youtube.com') || href.includes('youtu.be')) {
+        eventType = 'youtube_link_click';
+    } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+        eventType = 'outbound_link_click';
+        eventData = { outbound_url: href, link_text: target.innerText.trim() };
+    }
+
+    if (eventType) {
+        window.dataLayer.push({
+            event: eventType,
+            ...eventData
+        });
+    }
+});
+
+// 3. YouTube Video Play Tracking
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+var ytPlayers = [];
+
+function onYouTubeIframeAPIReady() {
+    var iframes = document.querySelectorAll('iframe[src*="youtube.com/embed/"], iframe[src*="youtu.be/embed/"]');
+    iframes.forEach(function(iframe) {
+        var src = iframe.src;
+        if (src.indexOf('enablejsapi=1') === -1) {
+            iframe.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'enablejsapi=1&origin=' + window.location.origin;
+        }
+        
+        var player = new YT.Player(iframe, {
+            events: {
+                'onStateChange': function(event) {
+                    var videoData = player.getVideoData();
+                    if (event.data === YT.PlayerState.PLAYING) {
+                        window.dataLayer.push({
+                            event: 'video_start',
+                            video_provider: 'youtube',
+                            video_title: videoData.title,
+                            video_id: videoData.video_id
+                        });
+                    } else if (event.data === YT.PlayerState.PAUSED) {
+                        window.dataLayer.push({
+                            event: 'video_pause',
+                            video_provider: 'youtube',
+                            video_title: videoData.title
+                        });
+                    } else if (event.data === YT.PlayerState.ENDED) {
+                        window.dataLayer.push({
+                            event: 'video_complete',
+                            video_provider: 'youtube',
+                            video_title: videoData.title
+                        });
+                    }
+                }
+            }
+        });
+        ytPlayers.push(player);
+    });
+}
+</script>
+
 </body>
 </html>

@@ -236,5 +236,54 @@ function getVideoId(url) {
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : '';
 }
+
+<!-- E-commerce DataLayer Events -->
+<script>
+window.dataLayer = window.dataLayer || [];
+
+// 1. View Item Event (fires on page load)
+window.dataLayer.push({
+    event: 'view_item',
+    ecommerce: {
+        currency: 'PKR',
+        value: {{ product.sale_price if product.sale_price else product.original_price }},
+        items: [{
+            item_id: '{{ product.id }}',
+            item_name: '{{ product.name | replace("'", "\'") }}',
+            item_brand: '{{ product.brand_name | default("", true) | replace("'", "\'") }}',
+            price: {{ product.sale_price if product.sale_price else product.original_price }},
+            quantity: 1
+        }]
+    }
+});
+
+// 2. Add to Cart Event (fires on form submission)
+document.addEventListener('DOMContentLoaded', function() {
+    const cartForm = document.querySelector('form[action^="/cart/add"]');
+    if (cartForm) {
+        cartForm.addEventListener('submit', function() {
+            const qtyInput = this.querySelector('input[name="quantity"]');
+            const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+            const price = {{ product.sale_price if product.sale_price else product.original_price }};
+            
+            window.dataLayer.push({
+                event: 'add_to_cart',
+                ecommerce: {
+                    currency: 'PKR',
+                    value: price * qty,
+                    items: [{
+                        item_id: '{{ product.id }}',
+                        item_name: '{{ product.name | replace("'", "\'") }}',
+                        item_brand: '{{ product.brand_name | default("", true) | replace("'", "\'") }}',
+                        price: price,
+                        quantity: qty
+                    }]
+                }
+            });
+        });
+    }
+});
+</script>
+
 </script>
 {% endblock %}
