@@ -1,48 +1,11 @@
-"""ZELO LIVE BOUTIQUE — Flask backend with MotherDuck."""
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import os
-import time
 import json
-import re
-import base64
 import requests
-import json
-import uuid
-import secrets
-from datetime import datetime
-from functools import wraps
-from groq import Groq
-from google import genai
-from google.genai import types as genai_types
-
-import duckdb
-import cloudinary.uploader
-from flask import (Flask, render_template, request, redirect, url_for,, session
-                   session, flash, jsonify, abort)
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# Vercel's serverless runtime has no writable/set HOME dir; DuckDB/MotherDuck
-# needs one to store its config & extensions cache. /tmp is the only writable
-# path in that environment.
-os.environ.setdefault("HOME", "/tmp")
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
-app.config["UPLOAD_FOLDER"] = "static/uploads"
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key-for-sessions")
 
-DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
-FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
-# Initialize Groq client
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
-
-
-# ---------- Database ----------
 def get_db():
     token = os.getenv("MOTHERDUCK_TOKEN")
     db = os.getenv("MOTHERDUCK_DATABASE", "zelo_boutique")
