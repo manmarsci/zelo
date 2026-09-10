@@ -285,17 +285,6 @@ def cart_add():
     return redirect(request.referrer or url_for("products"))
 
 
-@app.route("/cart")
-def cart():
-    items = get_cart_items()
-    subtotal = sum(
-        (float(it["sale_price"] or it["original_price"])) * it["quantity"]
-        for it in items
-    )
-    delivery = 0 if subtotal >= FREE_DELIVERY_ABOVE else DELIVERY_CHARGES
-    return render_template("cart.html", items=items, subtotal=subtotal,
-                           delivery=delivery, total=subtotal + delivery)
-
 
 @app.route("/cart/update/<int:cart_id>", methods=["POST"])
 def cart_update(cart_id):
@@ -1611,12 +1600,26 @@ def add_to_cart(product_id):
     flash("Item added to cart!", "success")
     return redirect(request.referrer or url_for('cart'))
 
+# ---------- Cart Routes (Single Source of Truth) ----------
+@app.route("/cart/add/<int:product_id>", methods=["POST"])
+def add_to_cart(product_id):
+    quantity = int(request.form.get('quantity', 1))
+    if 'cart' not in session:
+        session['cart'] = {}
+    pid_str = str(product_id)
+    if pid_str in session['cart']:
+        session['cart'][pid_str] += quantity
+    else:
+        session['cart'][pid_str] = quantity
+    session.modified = True
+    flash("Item added to cart!", "success")
+    return redirect(request.referrer or url_for('cart'))
+
 @app.route("/cart")
 def cart():
     cart_items = []
     total = 0
     cart = session.get('cart', {})
-    
     for pid_str, qty in cart.items():
         product = query_one("SELECT * FROM products WHERE id = ?", [int(pid_str)])
         if product:
@@ -1629,7 +1632,6 @@ def cart():
                 'price': price,
                 'total': item_total
             })
-            
     return render_template("cart.html", cart_items=cart_items, total=total)
 
 @app.route("/cart/remove/<int:product_id>")
@@ -1641,6 +1643,3 @@ def remove_from_cart(product_id):
             session.modified = True
     flash("Item removed from cart.", "info")
     return redirect(url_for('cart'))
-
-def handler(request):
-    return app(request.environ, lambda *args: None)
