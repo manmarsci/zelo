@@ -96,12 +96,12 @@
                 <input type="hidden" name="product_id" value="{{ product.id }}" />
 
                 <!-- Size Selection (if available) -->
-                {% if product.sizes %}
+                {% if product.sizes_list %}
                 <div style="margin-bottom:1.5rem;">
                     <label style="display:block; font-weight:600; color:#1a1a1a; margin-bottom:0.5rem;">Select Size</label>
                     <select name="size" required style="width:100%; padding:0.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:1rem;">
                         <option value="">Choose a size</option>
-                        {% for size in product.sizes %}
+                        {% for size in product.sizes_list %}
                         <option value="{{ size }}">{{ size }}</option>
                         {% endfor %}
                     </select>

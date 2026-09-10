@@ -617,6 +617,19 @@ def admin_products():
 @admin_required
 def admin_product_form(pid=None):
     product = query_one("SELECT * FROM products WHERE id = ?", [pid]) if pid else None
+
+    # Expose parsed helpers for the template when editing
+    if product:
+        try:
+            product['features_list'] = json.loads(product['features']) if product.get('features') else []
+        except Exception:
+            product['features_list'] = []
+        try:
+            bundle = json.loads(product['bundle_info']) if product.get('bundle_info') else {}
+        except Exception:
+            bundle = {}
+        product['bundle_type'] = bundle.get('type', 'standard')
+
     brands = query("SELECT * FROM brands ORDER BY name")
     categories = query("SELECT * FROM categories ORDER BY sort_order")
     images = query("SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order",
@@ -625,16 +638,28 @@ def admin_product_form(pid=None):
     if request.method == "POST":
         f = request.form
 
-        features = []
-        for i in range(4):
-            title = request.form.get(f"feat_title_{i}", "").strip()
-            desc = request.form.get(f"feat_desc_{i}", "").strip()
-            if title:
-                features.append({"title": title, "desc": desc})
-        features_json = json.dumps(features)
+        # Features — read the JSON built client-side by the features textarea parser
+        features_json = f.get("features_json", "[]")
+        try:
+            json.loads(features_json)
+        except Exception:
+            features_json = "[]"
 
         slug = slugify(f["name"]) if not (product and product["slug"]) else product["slug"]
 
+        # Sizes / Colors — built client-side as JSON by the chip inputs
+        sizes_json = f.get("sizes", "[]")
+        colors_json = f.get("colors", "[]")
+        try:
+            json.loads(sizes_json)
+        except Exception:
+            sizes_json = "[]"
+        try:
+            json.loads(colors_json)
+        except Exception:
+            colors_json = "[]"
+
+        # Bundle info
         included_pieces = request.form.getlist('included_pieces')
         bundle_type = request.form.get('bundle_type', 'standard')
         kameez_length = request.form.get('kameez_length', '').strip()
@@ -656,7 +681,7 @@ def admin_product_form(pid=None):
             float(f["original_price"]),
             float(f["sale_price"]) if f.get("sale_price") else None,
             int(f["stock"]),
-            f.get("sizes", "[]"), f.get("colors", "[]"),
+            sizes_json, colors_json,
             f.get("is_new_arrival") == "on",
             f.get("is_popular") == "on",
             f.get("is_sale") == "on",
@@ -689,11 +714,11 @@ def admin_product_form(pid=None):
 
         execute("DELETE FROM product_images WHERE product_id = ?", [pid])
         image_urls = request.form.getlist("image_urls[]")
-        for url in image_urls:
+        for i, url in enumerate(image_urls):
             url = url.strip()
             if url:
-                execute("INSERT INTO product_images (product_id, image_url) VALUES (?,?)",
-                        [pid, url])
+                execute("INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)",
+                        [pid, url, i])
 
         return redirect(url_for("admin_product_form", pid=pid))
 
@@ -1485,6 +1510,137 @@ def get_video_id(url):
     return match.group(1) if match else ''
 
 app.jinja_env.globals.update(get_video_id=get_video_id)
+
+# ---------- Product Feeds ----------
+@app.route("/feeds/google-merchant.xml")
+def feed_google_merchant():
+    products = query("""
+        SELECT p.*, b.name as brand_name, c.name as category_name,
+               (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
+        FROM products p
+        LEFT JOIN brands b ON p.brand_id=b.id
+        LEFT JOIN categories c ON p.category_id=c.id
+        WHERE p.is_active = TRUE
+        ORDER BY p.created_at DESC
+    """)
+    domain = request.host_url.rstrip('/')
+
+    def esc(s):
+        if s is None:
+            return ''
+        return (str(s).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                .replace('"', '&quot;').replace("'", '&apos;'))
+
+    items_xml = []
+    for p in products:
+        price = float(p['sale_price'] or p['original_price'])
+        orig_price = float(p['original_price'])
+        availability = 'in_stock' if (p['stock'] or 0) > 0 else 'out_of_stock'
+
+        try:
+            bundle = json.loads(p['bundle_info']) if p.get('bundle_info') else {}
+        except Exception:
+            bundle = {}
+        bundle_type = bundle.get('type', 'standard')
+        pieces = bundle.get('pieces', [])
+
+        all_images = query("SELECT image_url FROM product_images WHERE product_id=? ORDER BY sort_order", [p['id']])
+        extra_images = ''.join(
+            f"<g:additional_image_link>{esc(img['image_url'])}</g:additional_image_link>"
+            for img in all_images[1:9]
+        )
+
+        title = f"{p['name']} - {p['brand_name']}" if p.get('brand_name') else p['name']
+        description = (p.get('description') or '').strip()
+        if not description:
+            bundle_label = bundle_type.replace('_', ' ')
+            description = f"Authentic branded {bundle_label} unstitched suit from {p.get('brand_name') or 'ZELO LIVE BOUTIQUE'}. Fabric: {p.get('fabric') or 'Premium'}."
+
+        item = f"""
+        <item>
+          <g:id>{p['id']}</g:id>
+          <title>{esc(title)}</title>
+          <description>{esc(description)}</description>
+          <link>{domain}/product/{esc(p['slug'])}</link>
+          <g:image_link>{esc(p.get('image') or '')}</g:image_link>
+          {extra_images}
+          <g:availability>{availability}</g:availability>
+          <g:price>{orig_price:.2f} PKR</g:price>
+          {f"<g:sale_price>{price:.2f} PKR</g:sale_price>" if p['sale_price'] else ""}
+          <g:brand>{esc(p.get('brand_name') or 'ZELO LIVE BOUTIQUE')}</g:brand>
+          <g:condition>new</g:condition>
+          <g:identifier_exists>no</g:identifier_exists>
+          <g:mpn>{esc(p['slug'])}</g:mpn>
+          <g:product_type>{esc(p.get('category_name') or 'Unstitched Suits')}</g:product_type>
+          <g:google_product_category>Apparel &amp; Accessories &gt; Clothing</g:google_product_category>
+          <g:custom_label_0>{esc(bundle_type)}</g:custom_label_0>
+          <g:custom_label_1>{esc(p.get('fabric') or '')}</g:custom_label_1>
+          <g:custom_label_2>{esc(', '.join(pieces))}</g:custom_label_2>
+          <g:custom_label_3>{esc(p.get('brand_name') or '')}</g:custom_label_3>
+        </item>"""
+        items_xml.append(item)
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+<channel>
+<title>ZELO LIVE BOUTIQUE - Product Feed</title>
+<link>{domain}</link>
+<description>Branded leftover unstitched suits, patches &amp; laces - Pakistan</description>
+{''.join(items_xml)}
+</channel>
+</rss>"""
+    return app.response_class(xml, mimetype='application/xml')
+
+
+@app.route("/feeds/products.csv")
+def feed_products_csv():
+    import csv
+    import io
+
+    products = query("""
+        SELECT p.*, b.name as brand_name, c.name as category_name,
+               (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
+        FROM products p
+        LEFT JOIN brands b ON p.brand_id=b.id
+        LEFT JOIN categories c ON p.category_id=c.id
+        WHERE p.is_active = TRUE
+        ORDER BY p.created_at DESC
+    """)
+    domain = request.host_url.rstrip('/')
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id", "title", "description", "availability", "condition", "price", "sale_price",
+        "link", "image_link", "brand", "product_type", "bundle_type", "fabric",
+        "included_pieces", "stock"
+    ])
+
+    for p in products:
+        try:
+            bundle = json.loads(p['bundle_info']) if p.get('bundle_info') else {}
+        except Exception:
+            bundle = {}
+        writer.writerow([
+            p['id'],
+            p['name'],
+            (p.get('description') or '').replace('\n', ' ').strip(),
+            'in stock' if (p['stock'] or 0) > 0 else 'out of stock',
+            'new',
+            f"{float(p['original_price']):.2f}",
+            f"{float(p['sale_price']):.2f}" if p['sale_price'] else '',
+            f"{domain}/product/{p['slug']}",
+            p.get('image') or '',
+            p.get('brand_name') or '',
+            p.get('category_name') or '',
+            bundle.get('type', 'standard'),
+            p.get('fabric') or '',
+            ', '.join(bundle.get('pieces', [])),
+            p['stock']
+        ])
+
+    return app.response_class(output.getvalue(), mimetype='text/csv',
+                              headers={"Content-Disposition": "attachment; filename=zelo_product_feed.csv"})
 
 
 if __name__ == "__main__":

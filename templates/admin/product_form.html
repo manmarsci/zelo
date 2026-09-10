@@ -1,140 +1,330 @@
 {% extends "admin/base.html" %}
 {% block content %}
+<style>
+.pf-section { background:#fff; border:1px solid #e8e1d1; border-radius:8px; padding:1.75rem; margin-bottom:1.5rem; }
+.pf-section h3 { margin-top:0; color:#8b7355; border-bottom:2px solid #e8e1d1; padding-bottom:.6rem; margin-bottom:1.25rem; font-size:1.1rem; }
+.pf-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1rem; }
+.pf-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.25rem; margin-bottom:1rem; }
+.pf-field label { display:block; font-size:.85rem; font-weight:600; margin-bottom:.4rem; color:#444; }
+.pf-field input[type=text], .pf-field input[type=number], .pf-field input[type=url],
+.pf-field select, .pf-field textarea {
+  width:100%; padding:.7rem .9rem; border:1px solid #d8d2c4; border-radius:6px; font-size:.95rem; font-family:inherit;
+}
+.pf-hint { font-size:.78rem; color:#999; margin-top:.3rem; }
+.chip-input-wrap { border:1px solid #d8d2c4; border-radius:6px; padding:.5rem; background:#fff; min-height:46px; display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.chip { background:#1a1a1a; color:#fff; padding:.3rem .7rem; border-radius:14px; font-size:.82rem; display:flex; align-items:center; gap:.4rem; }
+.chip button { background:none; border:none; color:#fff; cursor:pointer; font-size:1rem; line-height:1; padding:0; }
+.chip-input-wrap input { border:none; outline:none; flex:1; min-width:120px; padding:.3rem; font-size:.9rem; }
+.preset-btns { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+.preset-btn { background:#fbf7ec; border:1px solid #e8e1d1; color:#8b7355; padding:.3rem .7rem; border-radius:12px; font-size:.78rem; cursor:pointer; }
+.preset-btn:hover { background:#c9a961; color:#fff; border-color:#c9a961; }
+.checkbox-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:.75rem; padding:1rem; background:#fbf7ec; border-radius:6px; }
+.checkbox-grid label { display:flex; align-items:center; gap:.5rem; font-size:.9rem; cursor:pointer; }
+.pf-image-row { display:flex; gap:.75rem; align-items:center; background:#fbf7ec; padding:.6rem; border-radius:6px; margin-bottom:.6rem; }
+.pf-image-row input { flex:1; }
+.pf-image-row img { width:48px; height:48px; object-fit:cover; border-radius:4px; border:1px solid #e8e1d1; background:#fff; }
+.pf-image-row button { background:none; border:none; color:#c84b31; cursor:pointer; font-size:.85rem; }
+.pf-submit-bar { position:sticky; bottom:0; background:#fff; border-top:1px solid #e8e1d1; padding:1rem 1.75rem; display:flex; gap:1rem; margin:0 -1.75rem -1.75rem; border-radius:0 0 8px 8px; }
+</style>
+
 <h1>{{ "Edit" if product else "Add" }} Product</h1>
-<form method="post" class="admin-form">
-  <div class="form-row-2">
-    <div>
-      <label>Product Name *</label>
-      <input type="text" name="name" value="{{ product.name if product else '' }}" required />
-    </div>
-    <div>
-      <label>Brand</label>
-      <select name="brand_id">
-        <option value="">—</option>
-        {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if product and product.brand_id==b.id }}>{{ b.name }}</option>{% endfor %}
-      </select>
-    </div>
-  </div>
-  <div class="form-row-2">
-    <div>
-      <label>Category</label>
-      <select name="category_id">
-        <option value="">—</option>
-        {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if product and product.category_id==c.id }}>{{ c.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div>
-      <label>Fabric / Material</label>
-      <input type="text" name="fabric" value="{{ product.fabric if product else '' }}" />
-    </div>
-  </div>
-  <label>Description</label>
-  <textarea name="description" rows="4">{{ product.description if product else '' }}</textarea>
 
-  <div class="form-row-3">
-    <div>
-      <label>Original Price (PKR) *</label>
-      <input type="number" step="0.01" name="original_price" value="{{ product.original_price if product else '' }}" required />
+<form method="post" id="productForm">
+
+  <!-- BASIC INFO -->
+  <div class="pf-section">
+    <h3>📝 Basic Information</h3>
+    <div class="pf-row-2">
+      <div class="pf-field">
+        <label>Product Name *</label>
+        <input type="text" name="name" value="{{ product.name if product else '' }}" required />
+      </div>
+      <div class="pf-field">
+        <label>Brand</label>
+        <select name="brand_id">
+          <option value="">— No Brand —</option>
+          {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if product and product.brand_id==b.id }}>{{ b.name }}</option>{% endfor %}
+        </select>
+      </div>
     </div>
-    <div>
-      <label>Sale Price (PKR)</label>
-      <input type="number" step="0.01" name="sale_price" value="{{ product.sale_price if product else '' }}" />
+    <div class="pf-row-2">
+      <div class="pf-field">
+        <label>Category</label>
+        <select name="category_id">
+          <option value="">— No Category —</option>
+          {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if product and product.category_id==c.id }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="pf-field">
+        <label>Fabric / Material</label>
+        <input type="text" name="fabric" value="{{ product.fabric if product else '' }}" placeholder="e.g. Lawn, Chiffon, Cambric" />
+      </div>
     </div>
-    <div>
-      <label>Stock *</label>
-      <input type="number" name="stock" value="{{ product.stock if product else 0 }}" required />
+    <div class="pf-field">
+      <label>Description</label>
+      <textarea name="description" rows="4" placeholder="Describe the fabric quality, print, and what makes this piece special...">{{ product.description if product else '' }}</textarea>
     </div>
   </div>
 
-  <div class="form-row-2">
-    <div>
-      <label>Sizes (JSON array)</label>
-      <input type="text" name="sizes" value="{{ product.sizes if product else '[]' }}" placeholder='["S","M","L"]' />
-    </div>
-    <div>
-      <label>Colors (JSON array)</label>
-      <input type="text" name="colors" value="{{ product.colors if product else '[]' }}" placeholder='["Red","Blue"]' />
+  <!-- PRICING & STOCK -->
+  <div class="pf-section">
+    <h3>💰 Pricing & Inventory</h3>
+    <div class="pf-row-3">
+      <div class="pf-field">
+        <label>Original Price (PKR) *</label>
+        <input type="number" step="0.01" name="original_price" value="{{ product.original_price if product else '' }}" required />
+      </div>
+      <div class="pf-field">
+        <label>Sale Price (PKR)</label>
+        <input type="number" step="0.01" name="sale_price" value="{{ product.sale_price if product and product.sale_price else '' }}" placeholder="Leave blank if not on sale" />
+      </div>
+      <div class="pf-field">
+        <label>Stock Quantity *</label>
+        <input type="number" name="stock" value="{{ product.stock if product else 0 }}" required />
+      </div>
     </div>
   </div>
 
-  <div class="checkbox-row">
-    <label><input type="checkbox" name="is_new_arrival" {{ 'checked' if product and product.is_new_arrival }} /> New Arrival</label>
-    <label><input type="checkbox" name="is_popular" {{ 'checked' if product and product.is_popular }} /> Popular</label>
-    <label><input type="checkbox" name="is_sale" {{ 'checked' if product and product.is_sale }} /> Sale</label>
-    <label><input type="checkbox" name="is_active" {{ 'checked' if not product or product.is_active }} /> Active</label>
+  <!-- SIZES & COLORS -->
+  <div class="pf-section">
+    <h3>📏 Sizes & Colors</h3>
+    <div class="pf-row-2">
+      <div class="pf-field">
+        <label>Available Sizes</label>
+        <div class="chip-input-wrap" id="sizesChipWrap">
+          <input type="text" id="sizesTextInput" placeholder="Type a size and press Enter" />
+        </div>
+        <div class="preset-btns" id="sizePresets">
+          <button type="button" class="preset-btn" data-target="sizes">Free Size</button>
+          <button type="button" class="preset-btn" data-target="sizes">S</button>
+          <button type="button" class="preset-btn" data-target="sizes">M</button>
+          <button type="button" class="preset-btn" data-target="sizes">L</button>
+          <button type="button" class="preset-btn" data-target="sizes">XL</button>
+          <button type="button" class="preset-btn" data-target="sizes">XXL</button>
+          <button type="button" class="preset-btn" data-target="sizes">4-5Y</button>
+          <button type="button" class="preset-btn" data-target="sizes">6-7Y</button>
+          <button type="button" class="preset-btn" data-target="sizes">8-9Y</button>
+          <button type="button" class="preset-btn" data-target="sizes">10-11Y</button>
+        </div>
+        <p class="pf-hint">For unstitched suits, use "Free Size". For ready-to-wear/frocks, add specific sizes.</p>
+        <input type="hidden" name="sizes" id="sizesHidden" value="{{ product.sizes if product else '[]' }}" />
+      </div>
+      <div class="pf-field">
+        <label>Available Colors</label>
+        <div class="chip-input-wrap" id="colorsChipWrap">
+          <input type="text" id="colorsTextInput" placeholder="Type a color and press Enter" />
+        </div>
+        <div class="preset-btns" id="colorPresets">
+          <button type="button" class="preset-btn" data-target="colors">Ivory</button>
+          <button type="button" class="preset-btn" data-target="colors">Black</button>
+          <button type="button" class="preset-btn" data-target="colors">White</button>
+          <button type="button" class="preset-btn" data-target="colors">Maroon</button>
+          <button type="button" class="preset-btn" data-target="colors">Navy</button>
+          <button type="button" class="preset-btn" data-target="colors">Mint</button>
+          <button type="button" class="preset-btn" data-target="colors">Pink</button>
+          <button type="button" class="preset-btn" data-target="colors">Peach</button>
+        </div>
+        <input type="hidden" name="colors" id="colorsHidden" value="{{ product.colors if product else '[]' }}" />
+      </div>
+    </div>
   </div>
 
-  <!-- IMAGES SECTION -->
-  <div class="image-urls-section">
-    <label>Product Images (Cloudinary URLs)</label>
-    <p class="muted small" style="margin-bottom:1rem">Paste Cloudinary image URLs below. Add up to 5 images.</p>
-    
+  <!-- FLAGS -->
+  <div class="pf-section">
+    <h3>🏷 Product Flags</h3>
+    <div class="checkbox-grid">
+      <label><input type="checkbox" name="is_new_arrival" {{ 'checked' if product and product.is_new_arrival }} /> New Arrival</label>
+      <label><input type="checkbox" name="is_popular" {{ 'checked' if product and product.is_popular }} /> Popular</label>
+      <label><input type="checkbox" name="is_sale" {{ 'checked' if product and product.is_sale }} /> On Sale</label>
+      <label><input type="checkbox" name="is_active" {{ 'checked' if not product or product.is_active }} /> Active (visible on store)</label>
+    </div>
+  </div>
+
+  <!-- IMAGES -->
+  <div class="pf-section">
+    <h3>🖼 Product Images</h3>
+    <p class="pf-hint" style="margin-bottom:1rem;">Paste Cloudinary (or any hosted) image URLs. First image is used as the main/cover image.</p>
     <div id="imageUrlFields">
-      <!-- Existing images will be loaded here by JS if editing, or we render them -->
       {% if images %}
         {% for img in images %}
-          <div class="image-url-row">
+          <div class="pf-image-row">
+            <img src="{{ img.image_url }}" onerror="this.style.visibility='hidden'" />
             <input type="text" name="image_urls[]" value="{{ img.image_url }}" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
-            <img src="{{ img.image_url }}" class="img-preview" style="display:block" />
-            <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
+            <button type="button" onclick="this.parentElement.remove()">✕ Remove</button>
           </div>
         {% endfor %}
       {% else %}
-        <div class="image-url-row">
+        <div class="pf-image-row">
+          <img src="" style="visibility:hidden" />
           <input type="text" name="image_urls[]" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
-          <img src="" class="img-preview" style="display:none" />
-          <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
+          <button type="button" onclick="this.parentElement.remove()">✕ Remove</button>
         </div>
       {% endif %}
     </div>
-    
     <button type="button" class="btn btn-outline" onclick="addImageUrlField()" style="margin-top:.5rem">+ Add Another Image URL</button>
   </div>
 
-  <!-- SMART FEATURES SECTION -->
-  <div class="features-admin-section">
-    <label>Product Features ("Why You'll Love It")</label>
-    <p class="muted small" style="margin-bottom:.5rem">Paste features below. Each line should be in format: <strong>Title: Description</strong></p>
-    
-    <textarea name="features_raw" rows="8" placeholder="Textured Dobby Lawn Fabric: Crafted from soft, breathable dobby lawn...&#10;&#10;Geometric Vertical Line Pattern: Accentuating vertical lines create a sleek look..." 
-              oninput="parseFeatures(this.value)" style="font-family:monospace; font-size:.9rem;">{% if product.features_list %}{% for f in product.features_list %}{{ f.title }}: {{ f.desc }}
+  <!-- FEATURES -->
+  <div class="pf-section">
+    <h3>✨ Product Features ("Why You'll Love It")</h3>
+    <p class="pf-hint" style="margin-bottom:.6rem;">One feature per line, format: <strong>Title: Description</strong></p>
+    <textarea name="features_raw" rows="6" placeholder="Textured Dobby Lawn Fabric: Crafted from soft, breathable dobby lawn...&#10;Geometric Vertical Line Pattern: Accentuating vertical lines create a sleek look..."
+              oninput="parseFeatures(this.value)" style="font-family:monospace; font-size:.85rem;">{% if product and product.features_list %}{% for f in product.features_list %}{{ f.title }}: {{ f.desc }}
 {% endfor %}{% endif %}</textarea>
-    
-    <!-- Hidden fields to store parsed JSON -->
     <input type="hidden" name="features_json" id="features_json" value="{{ product.features if product else '[]' }}" />
-    
     <div id="features_preview" style="margin-top:1rem"></div>
   </div>
 
+  <!-- BUNDLE / FABRIC DETAILS -->
+  <div class="pf-section">
+    <h3>🧵 Bundle Details (Unstitched Suits & Leftovers)</h3>
+    <div class="pf-row-2">
+      <div class="pf-field">
+        <label>Bundle Type</label>
+        <select name="bundle_type">
+          <option value="complete_3pc" {{ 'selected' if product and product.bundle_type=='complete_3pc' }}>Complete 3-Piece Suit</option>
+          <option value="complete_4pc" {{ 'selected' if product and product.bundle_type=='complete_4pc' }}>Complete 4-Piece Suit (with Trouser)</option>
+          <option value="incomplete" {{ 'selected' if product and product.bundle_type=='incomplete' }}>Incomplete / Single Piece</option>
+          <option value="patches_laces" {{ 'selected' if product and product.bundle_type=='patches_laces' }}>Patches & Laces Only</option>
+          <option value="standard" {{ 'selected' if not product or not product.bundle_type or product.bundle_type=='standard' }}>Standard Product</option>
+        </select>
+      </div>
+      <div class="pf-field">
+        <label>Included Pieces</label>
+        <div class="checkbox-grid" style="grid-template-columns:repeat(auto-fill, minmax(110px,1fr));">
+          <label><input type="checkbox" name="included_pieces" value="kameez" /> Kameez (Shirt)</label>
+          <label><input type="checkbox" name="included_pieces" value="dupatta" /> Dupatta</label>
+          <label><input type="checkbox" name="included_pieces" value="shalwar" /> Shalwar/Trouser</label>
+          <label><input type="checkbox" name="included_pieces" value="patches" /> Patches</label>
+          <label><input type="checkbox" name="included_pieces" value="laces" /> Laces</label>
+        </div>
+      </div>
+    </div>
+    <div class="pf-row-2">
+      <div class="pf-field">
+        <label>Kameez Length</label>
+        <input type="text" name="kameez_length" placeholder="e.g. 2.5 Meters" />
+      </div>
+      <div class="pf-field">
+        <label>Dupatta Length</label>
+        <input type="text" name="dupatta_length" placeholder="e.g. 2.0 Meters" />
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="pf-section">
+    <h3>🎬 Product Video (Optional)</h3>
+    <div class="pf-field">
+      <label>YouTube Video URL</label>
+      <input type="url" name="video_url" value="{{ product.video_url if product and product.video_url else '' }}" placeholder="https://www.youtube.com/watch?v=..." />
+      <p class="pf-hint">Shows fabric texture and true color in motion — boosts buyer confidence for unstitched pieces.</p>
+    </div>
+  </div>
+
+  <div class="pf-submit-bar">
+    <button type="submit" class="btn btn-primary">{{ "Update" if product else "Create" }} Product</button>
+    <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
+  </div>
+</form>
+
 <script>
+// ---------- Chip inputs (sizes / colors) ----------
+function initChipInput(wrapId, textInputId, hiddenId) {
+  const wrap = document.getElementById(wrapId);
+  const textInput = document.getElementById(textInputId);
+  const hidden = document.getElementById(hiddenId);
+
+  let values = [];
+  try { values = JSON.parse(hidden.value || '[]'); } catch(e) { values = []; }
+  if (!Array.isArray(values)) values = [];
+
+  function render() {
+    wrap.querySelectorAll('.chip').forEach(c => c.remove());
+    values.forEach((v, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `${v} <button type="button" data-i="${i}">&times;</button>`;
+      chip.querySelector('button').onclick = () => { values.splice(i, 1); render(); };
+      wrap.insertBefore(chip, textInput);
+    });
+    hidden.value = JSON.stringify(values);
+  }
+
+  function addValue(v) {
+    v = v.trim();
+    if (v && !values.includes(v)) { values.push(v); render(); }
+    textInput.value = '';
+  }
+
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addValue(textInput.value);
+    } else if (e.key === 'Backspace' && textInput.value === '' && values.length) {
+      values.pop(); render();
+    }
+  });
+
+  render();
+  return { addValue };
+}
+
+const sizesChip = initChipInput('sizesChipWrap', 'sizesTextInput', 'sizesHidden');
+const colorsChip = initChipInput('colorsChipWrap', 'colorsTextInput', 'colorsHidden');
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.target;
+    const label = btn.textContent.trim();
+    if (target === 'sizes') sizesChip.addValue(label);
+    if (target === 'colors') colorsChip.addValue(label);
+  });
+});
+
+// ---------- Image URL rows ----------
+function addImageUrlField() {
+  const container = document.getElementById('imageUrlFields');
+  const row = document.createElement('div');
+  row.className = 'pf-image-row';
+  row.innerHTML = `
+    <img src="" style="visibility:hidden" />
+    <input type="text" name="image_urls[]" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
+    <button type="button" onclick="this.parentElement.remove()">✕ Remove</button>
+  `;
+  container.appendChild(row);
+}
+
+function previewImage(input) {
+  const img = input.previousElementSibling;
+  if (input.value.startsWith('http')) {
+    img.src = input.value;
+    img.style.visibility = 'visible';
+  } else {
+    img.style.visibility = 'hidden';
+  }
+}
+
+// ---------- Features parser ----------
 function parseFeatures(text) {
   const lines = text.split('\n').filter(l => l.trim() !== '');
   const features = [];
-  
   lines.forEach(line => {
-    // Split by first colon only
     const parts = line.split(':');
     if (parts.length >= 2) {
-      features.push({
-        title: parts[0].trim(),
-        desc: parts.slice(1).join(':').trim()
-      });
+      features.push({ title: parts[0].trim(), desc: parts.slice(1).join(':').trim() });
     } else if (line.trim().length > 0) {
-      // If no colon, treat whole line as title with empty desc
       features.push({ title: line.trim(), desc: '' });
     }
   });
-  
-  // Update hidden input
   document.getElementById('features_json').value = JSON.stringify(features);
-  
-  // Show live preview
+
   const preview = document.getElementById('features_preview');
   if (features.length === 0) {
     preview.innerHTML = '<p class="muted small">Start typing features above...</p>';
   } else {
     preview.innerHTML = features.map((f, i) => `
-      <div style="padding:.5rem; background:#fff; border:1px solid #e8e1d1; border-radius:4px; margin-bottom:.5rem; font-size:.85rem;">
+      <div style="padding:.5rem .75rem; background:#fbf7ec; border:1px solid #e8e1d1; border-radius:4px; margin-bottom:.5rem; font-size:.85rem;">
         <strong>${i+1}. ${f.title}</strong><br/>
         <span class="muted">${f.desc || '(No description)'}</span>
       </div>
@@ -142,90 +332,9 @@ function parseFeatures(text) {
   }
 }
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   const textarea = document.querySelector('[name=features_raw]');
-  if (textarea.value.trim()) parseFeatures(textarea.value);
+  if (textarea && textarea.value.trim()) parseFeatures(textarea.value);
 });
-</script>
-
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">{{ "Update" if product else "Create" }} Product</button>
-    <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
-  </div>
-
-<!-- NEW: Bundle Builder Section -->
-<div style="background:#f9f9f9; padding:1.5rem; border-radius:8px; border:1px solid #e8e1d1; margin-top:2rem;">
-  <h3 style="margin-top:0; color:#8b7355; border-bottom:2px solid #e8e1d1; padding-bottom:0.5rem;"> Bundle Details (For Leftovers & Suits)</h3>
-  <p class="muted small">Use this section to specify exactly what pieces are included in this unique item.</p>
-  
-  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-top:1rem;">
-    
-    <div>
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Bundle Type</label>
-      <select name="bundle_type" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
-        <option value="complete_3pc">Complete 3-Piece Suit</option>
-        <option value="complete_4pc">Complete 4-Piece Suit (with Trouser)</option>
-        <option value="incomplete">Incomplete / Single Piece</option>
-        <option value="patches_laces">Patches & Laces Only</option>
-        <option value="standard" selected>Standard Product</option>
-      </select>
-    </div>
-
-    <div>
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Included Pieces</label>
-      <div style="display:flex; flex-wrap:wrap; gap:1rem; padding:.5rem; background:#fff; border:1px solid #d8d2c4; border-radius:6px;">
-        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="kameez" /> Kameez (Shirt)</label>
-        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="dupatta" /> Dupatta</label>
-        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="shalwar" /> Shalwar/Trouser</label>
-        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="patches" /> Patches</label>
-        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="included_pieces" value="laces" /> Laces</label>
-      </div>
-    </div>
-
-    <div>
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Kameez Length (Meters/Yards)</label>
-      <input type="text" name="kameez_length" placeholder="e.g. 2.5 Meters" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    </div>
-
-    <div>
-      <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Dupatta Length (Meters/Yards)</label>
-      <input type="text" name="dupatta_length" placeholder="e.g. 2.0 Meters" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-    </div>
-
-  </div>
-</div>
-
-
-        <div style="margin-bottom:1.5rem;">
-          <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">YouTube Video URL</label>
-          <input type="url" name="video_url" value="{{ product.video_url if product and product.video_url else '' }}" placeholder="https://www.youtube.com/watch?v=..." style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
-          <p class="muted small" style="margin-top:.4rem;">Paste YouTube video link to showcase the actual product fabric and details</p>
-        </div>
-
-  </form>
-
-<script>
-function addImageUrlField() {
-  const container = document.getElementById('imageUrlFields');
-  const newRow = document.createElement('div');
-  newRow.className = 'image-url-row';
-  newRow.innerHTML = `
-    <input type="text" name="image_urls[]" placeholder="https://res.cloudinary.com/..." oninput="previewImage(this)" />
-    <img src="" class="img-preview" style="display:none" />
-    <button type="button" class="btn-link text-danger" onclick="this.parentElement.remove()">Remove</button>
-  `;
-  container.appendChild(newRow);
-}
-
-function previewImage(input) {
-  const img = input.nextElementSibling;
-  if (input.value.startsWith('http')) {
-    img.src = input.value;
-    img.style.display = 'block';
-  } else {
-    img.style.display = 'none';
-  }
-}
 </script>
 {% endblock %}
