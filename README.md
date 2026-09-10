@@ -49,3 +49,5 @@ A minimal, elegant, mobile-first ecommerce website for a Pakistan-based boutique
 ### 2. Install dependencies
 ```bash
 pip install -r requirements.txt
+
+qwen is dumb
