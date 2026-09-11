@@ -22,6 +22,8 @@ app.secret_key = os.environ.get("SECRET_KEY", os.environ.get("FLASK_SECRET_KEY",
 SITE_URL = os.getenv("SITE_URL", "https://zeloliveboutique.manmarsci.com").rstrip("/")
 app.jinja_env.globals.update(site_url=SITE_URL)
 
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
 
