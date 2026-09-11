@@ -56,13 +56,14 @@
 .pp-video-badge { text-align:center; margin-bottom:1.5rem; }
 .pp-video-badge span { background:#ff0000; color:#fff; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
 
-.pp-main-image { border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1); background:#f0f0f0; aspect-ratio:4/5; position:relative; cursor:zoom-in; }
+/* Standard, capped-height product image (was: over-tall aspect-ratio box) */
+.pp-main-image { border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1); background:#f0f0f0; height:480px; width:100%; position:relative; cursor:zoom-in; }
 .pp-main-image img { width:100%; height:100%; object-fit:cover; display:block; }
 .pp-zoom-hint { position:absolute; bottom:.75rem; right:.75rem; background:rgba(0,0,0,.6); color:#fff; font-size:.75rem; padding:.35rem .7rem; border-radius:20px; display:flex; align-items:center; gap:.35rem; pointer-events:none; }
-.pp-no-image { background:#f0f0f0; border-radius:12px; padding:3rem 1.5rem; text-align:center; color:#999; aspect-ratio:4/5; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.pp-no-image { background:#f0f0f0; border-radius:12px; padding:3rem 1.5rem; text-align:center; color:#999; height:480px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 
 .pp-thumbs { display:flex; gap:.6rem; margin-top:.75rem; flex-wrap:wrap; }
-.pp-thumb { width:70px; height:88px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:.65; transition:opacity .15s, border-color .15s; background:#f0f0f0; flex-shrink:0; }
+.pp-thumb { width:64px; height:80px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:.65; transition:opacity .15s, border-color .15s; background:#f0f0f0; flex-shrink:0; }
 .pp-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
 .pp-thumb.active, .pp-thumb:hover { opacity:1; border-color:#c9a961; }
 
@@ -99,14 +100,6 @@
 .pp-stock span { color:#666; font-size:.85rem; }
 @keyframes pp-pulse { 0%,100%{opacity:1;} 50%{opacity:.7;} }
 
-.pp-features { margin-bottom:1.5rem; }
-.pp-features h3 { color:#1a1a1a; font-size:1.1rem; margin-bottom:.9rem; }
-.pp-feature-item { display:flex; gap:.75rem; padding:.85rem 0; border-bottom:1px solid #f0ebe0; }
-.pp-feature-item:last-child { border-bottom:none; }
-.pp-feature-icon { flex:0 0 28px; width:28px; height:28px; border-radius:50%; background:#c9a961; color:#fff; display:flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:700; }
-.pp-feature-text strong { display:block; color:#1a1a1a; font-size:.92rem; margin-bottom:.15rem; }
-.pp-feature-text span { color:#666; font-size:.85rem; line-height:1.5; }
-
 .pp-spec-table { margin-bottom:1.5rem; }
 .pp-spec-table h3 { color:#1a1a1a; font-size:1.1rem; margin-bottom:.75rem; }
 .pp-spec-row { display:flex; justify-content:space-between; padding:.6rem 0; border-bottom:1px solid #f0ebe0; font-size:.9rem; }
@@ -142,12 +135,13 @@
 @media (max-width: 900px) {
   .pp-container { padding:1rem 1rem 1.5rem; }
   .pp-layout { grid-template-columns:1fr; gap:1.5rem; }
+  .pp-main-image, .pp-no-image { height:360px; }
   .pp-title { font-size:1.45rem; }
   .pp-price-sale, .pp-price-single { font-size:1.4rem; }
   .pp-trust-grid { grid-template-columns:1fr 1fr; }
   .pp-video-section { padding:1.75rem 1rem; }
   .pp-video-section h2 { font-size:1.3rem; }
-  .pp-thumb { width:58px; height:72px; }
+  .pp-thumb { width:56px; height:70px; }
 
   .pp-mobile-cta {
     display:flex;
@@ -278,22 +272,6 @@
             </div>
             {% endif %}
 
-            <!-- Features -->
-            {% if product.features_list %}
-            <div class="pp-features">
-                <h3>Why You'll Love It</h3>
-                {% for f in product.features_list %}
-                <div class="pp-feature-item">
-                    <div class="pp-feature-icon">✓</div>
-                    <div class="pp-feature-text">
-                        <strong>{{ f.title }}</strong>
-                        {% if f.desc %}<span>{{ f.desc }}</span>{% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
             <!-- Add to Cart Form -->
             <form method="post" action="{{ url_for('cart_add') }}" class="pp-form" id="addToCartForm">
                 <input type="hidden" name="product_id" value="{{ product.id }}" />
@@ -360,6 +338,22 @@
             </div>
         </div>
     </div>
+
+    <!-- Full-width Features Section (after trust badges, uses existing site classes) -->
+    {% if product.features_list %}
+    <div class="product-features-full">
+        <h2 class="features-heading">Why You'll Love It</h2>
+        <div class="features-grid-full">
+            {% for f in product.features_list %}
+            <div class="feature-card">
+                <div class="feature-check">✓</div>
+                <h4>{{ f.title }}</h4>
+                {% if f.desc %}<p>{{ f.desc }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Video Showcase Section -->
     {% if product.video_url %}
@@ -446,7 +440,6 @@ document.addEventListener('keydown', function(e) {
 {% if product.bundle_info %}
 const bundleInfo = {{ product.bundle_info | safe }};
 
-// Inline spec rows (kameez/dupatta length) inside the spec table
 const specRows = document.getElementById('ppSpecBundleRows');
 if (specRows && bundleInfo.measurements) {
     let rowsHtml = '';

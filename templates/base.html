@@ -183,6 +183,7 @@
         <a href="{{ url_for('products', sort='newest') }}">New Arrivals</a>
         <a href="{{ url_for('products', sort='discount') }}">Sale</a>
         <a href="{{ url_for('products') }}">Shop All</a>
+        <a href="{{ url_for('blog_list') }}">Blog</a>
       </nav>
       <div class="header-actions">
         <form class="search-form" action="{{ url_for('products') }}" method="get" role="search">
@@ -252,6 +253,7 @@
                     <li style="margin-bottom:0.8rem;"><a href="/products" style="color:#666; text-decoration:none;">Shop All</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/products?sort=newest" style="color:#666; text-decoration:none;">New Arrivals</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/products?sort=discount" style="color:#666; text-decoration:none;">Sale</a></li>
+                    <li style="margin-bottom:0.8rem;"><a href="/blog" style="color:#666; text-decoration:none;">Blog</a></li>
                     <li style="margin-bottom:0.8rem;"><a href="/track-order" style="color:#666; text-decoration:none;">Track Order</a></li>
                 </ul>
             </div>

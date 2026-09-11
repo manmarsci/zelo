@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} | ZELO LIVE BOUTIQUE Blog{% endblock %}
+{% block meta_desc %}{{ post.excerpt }}{% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_desc %}{{ post.excerpt }}{% endblock %}
+{% block content %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": {{ post.title | tojson }},
+  "description": {{ (post.excerpt or "") | tojson }},
+  "image": {{ (post.cover_image or "") | tojson }},
+  "author": { "@type": "Organization", "name": {{ post.author | tojson }} },
+  "datePublished": "{{ post.created_at.strftime('%Y-%m-%d') if post.created_at else '' }}"
+}
+</script>
+
+<div style="max-width:760px; margin:0 auto; padding:3rem 2rem;">
+    <div style="margin-bottom:1.5rem; color:#888; font-size:.85rem;">
+        <a href="{{ url_for('blog_list') }}" style="color:#c9a961; text-decoration:none;">Blog</a> / <span style="color:#1a1a1a;">{{ post.title }}</span>
+    </div>
+
+    {% if post.cover_image %}
+    <img src="{{ post.cover_image }}" alt="{{ post.title }}" style="width:100%; border-radius:12px; margin-bottom:2rem; max-height:420px; object-fit:cover;" />
+    {% endif %}
+
+    <p style="color:#8b7355; font-size:.85rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:.75rem;">
+        {{ post.created_at.strftime('%B %d, %Y') if post.created_at else '' }} · By {{ post.author }}
+    </p>
+    <h1 style="font-size:2.1rem; margin-bottom:2rem; line-height:1.25;">{{ post.title }}</h1>
+
+    <div class="blog-body">
+        {{ render_markdown(post.content) | safe }}
+    </div>
+
+    <div style="margin-top:3rem; padding:2rem; background:#1a1a1a; border-radius:10px; text-align:center;">
+        <h3 style="color:#c9a961; margin-bottom:.75rem;">Ready to Shop the Sale?</h3>
+        <a href="/products?sort=discount" style="display:inline-block; background:#c9a961; color:#1a1a1a; text-decoration:none; padding:.85rem 2rem; border-radius:6px; font-weight:600;">Browse Discounted Suits</a>
+    </div>
+
+    {% if related %}
+    <div style="margin-top:3rem;">
+        <h3 style="margin-bottom:1.25rem;">More from the Journal</h3>
+        <div style="display:grid; gap:1rem;">
+            {% for r in related %}
+            <a href="{{ url_for('blog_post', slug=r.slug) }}" style="color:#1a1a1a; text-decoration:none; font-weight:600; border-bottom:1px solid #e8e1d1; padding-bottom:.75rem; display:block;">{{ r.title }} →</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.blog-body h2 { font-size:1.5rem; margin:2rem 0 1rem; color:#1a1a1a; }
+.blog-body h3 { font-size:1.2rem; margin:1.5rem 0 .75rem; color:#1a1a1a; }
+.blog-body p { color:#444; line-height:1.8; margin-bottom:1.25rem; font-size:1.02rem; }
+.blog-body ul { margin:0 0 1.25rem 1.25rem; color:#444; line-height:1.8; }
+.blog-body li { margin-bottom:.5rem; }
+.blog-body strong { color:#1a1a1a; }
+.blog-body a { color:#c9a961; }
+</style>
+{% endblock %}

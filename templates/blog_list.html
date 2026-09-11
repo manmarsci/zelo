@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Blog | ZELO LIVE BOUTIQUE{% endblock %}
+{% block meta_desc %}Fashion tips, fabric guides, and the latest on branded leftover suits, discounts, and new arrivals from ZELO LIVE BOUTIQUE.{% endblock %}
+{% block content %}
+<div style="max-width:1000px; margin:0 auto; padding:3rem 2rem;">
+    <h1 style="text-align:center; margin-bottom:.5rem;">The ZELO Journal</h1>
+    <p style="text-align:center; color:#666; margin-bottom:3rem;">Fabric guides, style tips, and the story behind our branded leftovers.</p>
+
+    {% if posts %}
+    <div style="display:grid; gap:2rem;">
+        {% for p in posts %}
+        <a href="{{ url_for('blog_post', slug=p.slug) }}" style="display:grid; grid-template-columns:220px 1fr; gap:1.5rem; background:#fff; border:1px solid #e8e1d1; border-radius:10px; overflow:hidden; text-decoration:none; color:inherit;">
+            {% if p.cover_image %}
+            <img src="{{ p.cover_image }}" alt="{{ p.title }}" style="width:100%; height:100%; min-height:160px; object-fit:cover;" />
+            {% else %}
+            <div style="background:#f0f0f0; min-height:160px;"></div>
+            {% endif %}
+            <div style="padding:1.5rem 1.5rem 1.5rem 0;">
+                <p style="color:#8b7355; font-size:.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:.5rem;">{{ p.created_at.strftime('%B %d, %Y') if p.created_at else '' }}</p>
+                <h2 style="font-size:1.4rem; margin-bottom:.6rem; color:#1a1a1a;">{{ p.title }}</h2>
+                <p style="color:#666; font-size:.95rem; line-height:1.6;">{{ p.excerpt }}</p>
+                <span style="color:#c9a961; font-weight:600; font-size:.9rem;">Read more →</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="text-align:center; color:#888;">No blog posts yet — check back soon!</p>
+    {% endif %}
+</div>
+
+<style>
+@media (max-width: 640px) {
+  a[style*="grid-template-columns:220px 1fr"] { grid-template-columns:1fr !important; }
+}
+</style>
+{% endblock %}

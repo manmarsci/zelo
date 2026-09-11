@@ -262,6 +262,28 @@ def product_detail(slug):
     """, [p["category_id"], p["id"]])
     return render_template("product.html", product=p, images=images, related=related)
 
+# ---------- Blog ----------
+@app.route("/blog")
+def blog_list():
+    posts = query("""
+        SELECT id, title, slug, excerpt, cover_image, author, created_at
+        FROM blog_posts WHERE is_active = TRUE
+        ORDER BY created_at DESC
+    """)
+    return render_template("blog_list.html", posts=posts)
+
+
+@app.route("/blog/<slug>")
+def blog_post(slug):
+    post = query_one("SELECT * FROM blog_posts WHERE slug = ? AND is_active = TRUE", [slug])
+    if not post:
+        abort(404)
+    related = query("""
+        SELECT id, title, slug, excerpt, cover_image FROM blog_posts
+        WHERE slug != ? AND is_active = TRUE ORDER BY created_at DESC LIMIT 3
+    """, [slug])
+    return render_template("blog_post.html", post=post, related=related)
+
 
 # ---------- Cart (single source of truth: DB-backed) ----------
 @app.route("/cart")
@@ -1478,6 +1500,7 @@ def sitemap():
     static_pages = [
         ('/', '1.0', 'daily'),
         ('/products', '0.9', 'daily'),
+        ('/blog', '0.6', 'weekly'),
         ('/about', '0.6', 'monthly'),
         ('/faq', '0.5', 'monthly'),
         ('/shipping', '0.5', 'monthly'),
@@ -1496,8 +1519,45 @@ def sitemap():
         lastmod_tag = f'<lastmod>{lastmod}</lastmod>' if lastmod else ''
         xml += f'  <url><loc>{SITE_URL}/product/{p["slug"]}</loc>{lastmod_tag}<changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
 
+    blog_posts = query("SELECT slug, created_at FROM blog_posts WHERE is_active = TRUE")
+    for bp in blog_posts:
+        lastmod = bp['created_at'].strftime('%Y-%m-%d') if bp.get('created_at') else ''
+        lastmod_tag = f'<lastmod>{lastmod}</lastmod>' if lastmod else ''
+        xml += f'  <url><loc>{SITE_URL}/blog/{bp["slug"]}</loc>{lastmod_tag}<changefreq>monthly</changefreq><priority>0.5</priority></url>\n'
+
     xml += '</urlset>'
     return app.response_class(xml, mimetype='application/xml')
+
+
+def render_markdown(text):
+    """Minimal markdown renderer for blog content: headers, bold, links, paragraphs."""
+    import re
+    if not text:
+        return ''
+    html = text
+    html = re.sub(r'^### (.*)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+    html = re.sub(r'^## (.*)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+    html = re.sub(r'^# (.*)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+    html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
+    html = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', html)
+    # Bullet lists
+    html = re.sub(r'(?:^- .*(?:\n|$))+', lambda m: '<ul>' + ''.join(
+        f'<li>{line[2:].strip()}</li>' for line in m.group(0).strip().split('\n')
+    ) + '</ul>', html, flags=re.MULTILINE)
+    # Paragraphs: wrap remaining plain lines
+    blocks = html.split('\n\n')
+    out = []
+    for b in blocks:
+        b = b.strip()
+        if not b:
+            continue
+        if b.startswith('<h') or b.startswith('<ul'):
+            out.append(b)
+        else:
+            out.append(f'<p>{b}</p>')
+    return '\n'.join(out)
+
+app.jinja_env.globals.update(render_markdown=render_markdown)
 
 
 @app.route("/robots.txt")
