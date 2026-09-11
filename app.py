@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
+from groq import Groq
 import os
 # Must happen before duckdb is imported/used — Vercel's filesystem is read-only
 # except /tmp, and duckdb needs a resolvable home directory.
