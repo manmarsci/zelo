@@ -155,7 +155,6 @@ def index():
         WHERE p.is_active AND p.is_sale ORDER BY p.created_at DESC LIMIT 8
     """)
 
-    # Gallery: any active product that has at least one image, for the animated hero strip
     gallery_products = query("""
         SELECT p.slug, p.name, p.sale_price, p.original_price,
                (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
@@ -166,9 +165,21 @@ def index():
         LIMIT 24
     """)
 
+    # Hero carousel: prioritize on-sale items with images (biggest discount first),
+    # fall back to any active product with an image if there aren't enough sale items.
+    hero_products = query("""
+        SELECT p.slug, p.name, p.sale_price, p.original_price,
+               (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
+        FROM products p
+        WHERE p.is_active = TRUE
+          AND EXISTS (SELECT 1 FROM product_images WHERE product_id = p.id)
+        ORDER BY (p.is_sale AND p.sale_price IS NOT NULL) DESC, random()
+        LIMIT 6
+    """)
+
     return render_template("index.html",
                            new_arrivals=new_arrivals, popular=popular, sale=sale,
-                           gallery_products=gallery_products)
+                           gallery_products=gallery_products, hero_products=hero_products)
 
 
 @app.route("/products")
@@ -687,7 +698,15 @@ def admin_product_form(pid=None):
         except Exception:
             features_json = "[]"
 
-        slug = slugify(f["name"]) if not (product and product["slug"]) else product["slug"]
+        # Slug: honor an explicit admin edit; otherwise keep existing slug on edit,
+        # or auto-generate from the name on create.
+        slug_input = f.get("slug", "").strip()
+        if slug_input:
+            slug = slugify(slug_input)
+        elif product and product["slug"]:
+            slug = product["slug"]
+        else:
+            slug = slugify(f["name"])
 
         # Sizes / Colors — built client-side as JSON by the chip inputs
         sizes_json = f.get("sizes", "[]")

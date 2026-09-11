@@ -47,6 +47,13 @@
         </select>
       </div>
     </div>
+    {% if product %}
+    <div class="pf-field" style="margin-bottom:1rem;">
+      <label>URL Slug</label>
+      <input type="text" name="slug" value="{{ product.slug }}" />
+      <p class="pf-hint">⚠️ Changing this changes the product's live URL. Existing shared links, bookmarks, and search engine indexing for the old URL will break. Only edit if the slug is wrong (e.g. doesn't match the product name).</p>
+    </div>
+    {% endif %}
     <div class="pf-row-2">
       <div class="pf-field">
         <label>Category</label>
