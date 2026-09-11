@@ -247,8 +247,12 @@ def product_detail(slug):
         p['features_list'] = []
 
     execute("UPDATE products SET views = views + 1 WHERE id = ?", [p["id"]])
+
     images = query("SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order",
                    [p["id"]])
+    # Set the cover image so OG tags / schema / fallback all work correctly
+    p['image'] = images[0]['image_url'] if images else None
+
     related = query("""
         SELECT p.*, b.name as brand_name,
                (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
