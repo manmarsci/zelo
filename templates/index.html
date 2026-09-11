@@ -15,6 +15,158 @@
   </div>
 </section>
 
+<!-- Animated Shoppable Gallery -->
+{% if gallery_products %}
+<section class="gallery-marquee-section">
+  <div class="gallery-marquee-row gallery-row-1">
+    <div class="gallery-track">
+      {% for p in gallery_products %}
+      <a href="{{ url_for('product_detail', slug=p.slug) }}" class="gallery-tile">
+        <img src="{{ p.image }}" alt="{{ p.name }}" loading="lazy" />
+        <div class="gallery-tile-overlay">
+          <span class="gallery-tile-name">{{ p.name }}</span>
+          <span class="gallery-tile-price">
+            PKR {{ "%.0f"|format(p.sale_price or p.original_price) }}
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+      {% for p in gallery_products %}
+      <a href="{{ url_for('product_detail', slug=p.slug) }}" class="gallery-tile" aria-hidden="true" tabindex="-1">
+        <img src="{{ p.image }}" alt="{{ p.name }}" loading="lazy" />
+        <div class="gallery-tile-overlay">
+          <span class="gallery-tile-name">{{ p.name }}</span>
+          <span class="gallery-tile-price">
+            PKR {{ "%.0f"|format(p.sale_price or p.original_price) }}
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if gallery_products|length > 6 %}
+  <div class="gallery-marquee-row gallery-row-2">
+    <div class="gallery-track gallery-track-reverse">
+      {% for p in gallery_products|reverse %}
+      <a href="{{ url_for('product_detail', slug=p.slug) }}" class="gallery-tile">
+        <img src="{{ p.image }}" alt="{{ p.name }}" loading="lazy" />
+        <div class="gallery-tile-overlay">
+          <span class="gallery-tile-name">{{ p.name }}</span>
+          <span class="gallery-tile-price">
+            PKR {{ "%.0f"|format(p.sale_price or p.original_price) }}
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+      {% for p in gallery_products|reverse %}
+      <a href="{{ url_for('product_detail', slug=p.slug) }}" class="gallery-tile" aria-hidden="true" tabindex="-1">
+        <img src="{{ p.image }}" alt="{{ p.name }}" loading="lazy" />
+        <div class="gallery-tile-overlay">
+          <span class="gallery-tile-name">{{ p.name }}</span>
+          <span class="gallery-tile-price">
+            PKR {{ "%.0f"|format(p.sale_price or p.original_price) }}
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<style>
+.gallery-marquee-section {
+  padding: 2rem 0;
+  overflow: hidden;
+  background: #fff;
+  border-bottom: 1px solid #e8e1d1;
+}
+.gallery-marquee-row {
+  overflow: hidden;
+  margin-bottom: .75rem;
+}
+.gallery-marquee-row:last-child { margin-bottom: 0; }
+
+.gallery-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: gallery-scroll-left 60s linear infinite;
+}
+.gallery-track-reverse {
+  animation-name: gallery-scroll-right;
+  animation-duration: 70s;
+}
+.gallery-marquee-row:hover .gallery-track {
+  animation-play-state: paused;
+}
+
+@keyframes gallery-scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes gallery-scroll-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.gallery-tile {
+  position: relative;
+  flex: 0 0 auto;
+  width: 180px;
+  height: 225px;
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  transition: transform .2s;
+}
+.gallery-tile:hover {
+  transform: translateY(-4px);
+}
+.gallery-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gallery-tile-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,0) 100%);
+  padding: 1.75rem .75rem .6rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.gallery-tile-name {
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gallery-tile-price {
+  color: #c9a961;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .gallery-marquee-section { padding: 1.25rem 0; }
+  .gallery-tile { width: 130px; height: 163px; }
+  .gallery-tile-name { font-size: .72rem; }
+  .gallery-tile-price { font-size: .75rem; }
+  .gallery-marquee-row:last-child { display: none; }
+}
+</style>
+{% endif %}
+
 <!-- Features bar -->
 <section class="features-bar">
   <div class="container features-grid">
@@ -173,4 +325,3 @@
 </style>
 
 {% endblock %}
-

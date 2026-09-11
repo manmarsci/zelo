@@ -154,8 +154,21 @@ def index():
         FROM products p LEFT JOIN brands b ON p.brand_id=b.id
         WHERE p.is_active AND p.is_sale ORDER BY p.created_at DESC LIMIT 8
     """)
+
+    # Gallery: any active product that has at least one image, for the animated hero strip
+    gallery_products = query("""
+        SELECT p.slug, p.name, p.sale_price, p.original_price,
+               (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) as image
+        FROM products p
+        WHERE p.is_active = TRUE
+          AND EXISTS (SELECT 1 FROM product_images WHERE product_id = p.id)
+        ORDER BY random()
+        LIMIT 24
+    """)
+
     return render_template("index.html",
-                           new_arrivals=new_arrivals, popular=popular, sale=sale)
+                           new_arrivals=new_arrivals, popular=popular, sale=sale,
+                           gallery_products=gallery_products)
 
 
 @app.route("/products")
