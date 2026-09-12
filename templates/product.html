@@ -10,14 +10,16 @@
 {% block twitter_desc %}{{ product.description[:150] if product.description else product.name }}{% endblock %}
 
 {% block content %}
+{% set effective_price = (product.sale_price if product.sale_price else product.original_price) %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Product",
   "name": {{ product.name | tojson }},
-  "description": {{ (product.description or product.name) | tojson }},
-  "image": {{ (product.image or "") | tojson }},
+  "description": {{ (product.description or (product.name ~ ' - Authentic branded unstitched suit from ZELO LIVE BOUTIQUE, Pakistan. Premium fabric, limited leftover stock.')) | tojson }},
+  "image": [{{ (product.image or "") | tojson }}],
   "sku": {{ product.slug | tojson }},
+  "mpn": {{ product.slug | tojson }},
   "brand": {
     "@type": "Brand",
     "name": {{ (product.brand_name or "ZELO LIVE BOUTIQUE") | tojson }}
@@ -26,9 +28,44 @@
     "@type": "Offer",
     "url": "{{ request.url }}",
     "priceCurrency": "PKR",
-    "price": "{{ "%.2f"|format(product.sale_price or product.original_price) }}",
+    "price": "{{ "%.2f"|format(effective_price|float) }}",
     "availability": "{{ 'https://schema.org/InStock' if product.stock > 0 else 'https://schema.org/OutOfStock' }}",
-    "itemCondition": "https://schema.org/NewCondition"
+    "itemCondition": "https://schema.org/NewCondition",
+    "shippingDetails": {
+      "@type": "OfferShippingDetails",
+      "shippingRate": {
+        "@type": "MonetaryAmount",
+        "value": "{{ "0.00" if effective_price|float >= 5000 else "300.00" }}",
+        "currency": "PKR"
+      },
+      "shippingDestination": {
+        "@type": "DefinedRegion",
+        "addressCountry": "PK"
+      },
+      "deliveryTime": {
+        "@type": "ShippingDeliveryTime",
+        "handlingTime": {
+          "@type": "QuantitativeValue",
+          "minValue": 0,
+          "maxValue": 1,
+          "unitCode": "DAY"
+        },
+        "transitTime": {
+          "@type": "QuantitativeValue",
+          "minValue": 2,
+          "maxValue": 7,
+          "unitCode": "DAY"
+        }
+      }
+    },
+    "hasMerchantReturnPolicy": {
+      "@type": "MerchantReturnPolicy",
+      "applicableCountry": "PK",
+      "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+      "merchantReturnDays": 7,
+      "returnMethod": "https://schema.org/ReturnByMail",
+      "returnFees": "https://schema.org/FreeReturn"
+    }
   }
 }
 </script>
