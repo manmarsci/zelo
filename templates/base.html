@@ -168,16 +168,13 @@
     }
 </style>
 
-  <!-- Header -->
   <header class="header">
     <div class="container header-inner">
       <button class="menu-toggle" aria-label="Menu">☰</button>
-      <a href="{{ url_for('cart') }}" style="position:relative; text-decoration:none; color:#1a1a1a; font-size:1.5rem; margin-left:1rem;">
-    🛍️
-    {% if cart_count %}
-    <span style="position:absolute; top:-8px; right:-10px; background:#c9a961; color:#fff; font-size:0.7rem; font-weight:bold; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">{{ cart_count }}</span>
-    {% endif %}
-</a>
+      <a href="{{ url_for('index') }}" class="logo">
+        <span class="logo-mark">Z</span>
+        <span class="logo-text">ZELO LIVE<br/><small>BOUTIQUE</small></span>
+      </a>
       <nav class="nav" id="mainNav" aria-label="Main Navigation">
         <a href="{{ url_for('index') }}">Home</a>
         <a href="{{ url_for('products', sort='newest') }}">New Arrivals</a>
@@ -190,7 +187,7 @@
           <input type="search" name="q" placeholder="Search suits, patches, laces..." value="{{ request.args.get('q','') }}" aria-label="Search products" />
         </form>
         <a href="{{ url_for('cart') }}" class="icon-btn" title="Cart">
-          🛍 <span class="badge">{{ cart_count }}</span>
+          🛍 {% if cart_count %}<span class="badge">{{ cart_count }}</span>{% endif %}
         </a>
         {% if current_user %}
           <a href="{{ url_for('account') }}" class="icon-btn" title="Account">👤</a>

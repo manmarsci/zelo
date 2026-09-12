@@ -52,6 +52,7 @@
   height: 560px;
   overflow: hidden;
   touch-action: pan-y;
+  background: #1a1a1a;
 }
 .hero-carousel-track {
   position: relative;
@@ -76,10 +77,13 @@
   height: 100%;
   object-fit: cover;
 }
+/* Subtle bottom-only darken, just enough to keep the badge/info card legible.
+   No wash across the image — the photo stays fully visible. */
 .hero-slide-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(250,247,242,.92) 0%, rgba(250,247,242,.6) 45%, rgba(250,247,242,.15) 75%);
+  background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.35) 100%);
+  pointer-events: none;
 }
 .hero-slide-badge {
   position: absolute;
@@ -92,6 +96,7 @@
   padding: .4rem .9rem;
   border-radius: 20px;
   z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
 }
 .hero-slide-info {
   position: absolute;
@@ -101,7 +106,7 @@
   display: flex;
   flex-direction: column;
   gap: .3rem;
-  background: rgba(26,26,26,.72);
+  background: rgba(26,26,26,.75);
   padding: .7rem 1.1rem;
   border-radius: 8px;
   max-width: 260px;
@@ -117,24 +122,28 @@
   font-size: .9rem;
   font-weight: 700;
 }
+
+/* Text content now floats as its own card over the image, instead of a
+   full-width wash — the product photos stay crisp and undimmed. */
 .hero-carousel-content {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 3rem;
+  transform: translateY(-50%);
   z-index: 3;
-  max-width: 620px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0 1.25rem 0 3rem;
-  pointer-events: none;
+  max-width: 480px;
+  background: rgba(250,247,242,.94);
+  backdrop-filter: blur(4px);
+  padding: 2rem 2.25rem;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
 }
-.hero-carousel-content .btn { pointer-events: auto; }
 .hero-carousel-content .eyebrow {
   display: inline-block; font-size: .75rem; letter-spacing: 3px;
   text-transform: uppercase; color: #8b7355; margin-bottom: 1rem;
 }
-.hero-carousel-content h1 { font-size: 3rem; margin-bottom: 1rem; }
-.hero-carousel-content p { color: #555; margin-bottom: 2rem; font-size: 1.05rem; }
+.hero-carousel-content h1 { font-size: 2.6rem; margin-bottom: 1rem; }
+.hero-carousel-content p { color: #555; margin-bottom: 1.75rem; font-size: 1rem; }
 .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
 
 .hero-carousel-dots {
@@ -148,17 +157,21 @@
 }
 .hero-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: rgba(26,26,26,.25); border: none; cursor: pointer; padding: 0;
+  background: rgba(255,255,255,.5); border: none; cursor: pointer; padding: 0;
   transition: background .2s, width .2s;
 }
-.hero-dot.active { background: #1a1a1a; width: 22px; border-radius: 4px; }
+.hero-dot.active { background: #fff; width: 22px; border-radius: 4px; }
 
 @media (max-width: 900px) {
-  .hero-carousel { height: 460px; }
-  .hero-carousel-content { padding: 0 1.25rem; text-align: center; align-items: center; }
-  .hero-carousel-content h1 { font-size: 2rem; }
-  .hero-slide-scrim { background: linear-gradient(180deg, rgba(250,247,242,.55) 0%, rgba(250,247,242,.85) 65%, rgba(250,247,242,.95) 100%); }
-  .hero-slide-info { left: 1rem; bottom: 4.5rem; max-width: 200px; }
+  .hero-carousel { height: 520px; }
+  .hero-carousel-content {
+    left: 1rem; right: 1rem; max-width: none;
+    top: auto; bottom: 4.5rem; transform: none;
+    padding: 1.5rem 1.5rem;
+    text-align: center;
+  }
+  .hero-carousel-content h1 { font-size: 1.7rem; }
+  .hero-slide-info { left: 1rem; bottom: 1rem; max-width: 180px; }
   .hero-actions { justify-content: center; }
 }
 </style>
