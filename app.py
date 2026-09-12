@@ -636,6 +636,63 @@ def track_order():
 
     return render_template("track_order.html")
 
+# ---------- Admin: Blog ----------
+@app.route("/admin/blog")
+@admin_required
+def admin_blog():
+    posts = query("SELECT * FROM blog_posts ORDER BY created_at DESC")
+    return render_template("admin/blog_list.html", posts=posts)
+
+
+@app.route("/admin/blog/new", methods=["GET", "POST"])
+@app.route("/admin/blog/<int:pid>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_blog_form(pid=None):
+    post = query_one("SELECT * FROM blog_posts WHERE id = ?", [pid]) if pid else None
+
+    if request.method == "POST":
+        f = request.form
+        title = f["title"].strip()
+
+        slug_input = f.get("slug", "").strip()
+        if slug_input:
+            slug = slugify(slug_input)
+        elif post and post["slug"]:
+            slug = post["slug"]
+        else:
+            slug = slugify(title)
+
+        data = [
+            title, slug, f.get("excerpt", "").strip(), f.get("content", ""),
+            f.get("cover_image", "").strip() or None,
+            f.get("author", "").strip() or "ZELO LIVE BOUTIQUE",
+            f.get("is_active") == "on"
+        ]
+
+        if post:
+            execute("""
+                UPDATE blog_posts SET title=?, slug=?, excerpt=?, content=?, cover_image=?, author=?, is_active=?
+                WHERE id=?
+            """, data + [pid])
+            flash("Blog post updated.", "success")
+        else:
+            execute("""
+                INSERT INTO blog_posts (title, slug, excerpt, content, cover_image, author, is_active)
+                VALUES (?,?,?,?,?,?,?)
+            """, data)
+            flash("Blog post created.", "success")
+
+        return redirect(url_for("admin_blog"))
+
+    return render_template("admin/blog_form.html", post=post)
+
+
+@app.route("/admin/blog/<int:pid>/delete", methods=["POST"])
+@admin_required
+def admin_blog_delete(pid):
+    execute("DELETE FROM blog_posts WHERE id = ?", [pid])
+    flash("Blog post deleted.", "success")
+    return redirect(url_for("admin_blog"))
 
 # ---------- Admin ----------
 @app.route("/admin")

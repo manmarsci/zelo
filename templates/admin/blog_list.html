@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="admin-head" style="display:flex; justify-content:space-between; align-items:center;">
+  <h1>Blog Posts</h1>
+  <a href="{{ url_for('admin_blog_form') }}" class="btn btn-primary">+ New Post</a>
+</div>
+<table class="admin-table">
+  <thead><tr><th>Cover</th><th>Title</th><th>Slug</th><th>Status</th><th>Date</th><th></th></tr></thead>
+  <tbody>
+    {% for p in posts %}
+      <tr>
+        <td><img src="{{ p.cover_image or 'https://via.placeholder.com/60x40' }}" width="60" style="border-radius:4px; object-fit:cover; height:40px;" /></td>
+        <td>{{ p.title }}</td>
+        <td class="muted small">/blog/{{ p.slug }}</td>
+        <td>
+          {% if p.is_active %}<span class="tag" style="background:#d6f0dd; color:#2d6a3e;">Published</span>
+          {% else %}<span class="tag" style="background:#fff4d6; color:#8b6914;">Draft</span>{% endif %}
+        </td>
+        <td class="muted small">{{ p.created_at }}</td>
+        <td>
+          <a href="{{ url_for('admin_blog_form', pid=p.id) }}">Edit</a> |
+          <a href="{{ url_for('blog_post', slug=p.slug) }}" target="_blank">View</a> |
+          <form method="post" action="{{ url_for('admin_blog_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this blog post?')">
+            <button class="btn-link text-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" style="text-align:center; padding:2rem; color:#8b7355;">No blog posts yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

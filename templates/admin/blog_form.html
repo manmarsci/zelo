@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.bf-field { margin-bottom: 1.25rem; }
+.bf-field label { display:block; font-size:.85rem; font-weight:600; margin-bottom:.4rem; color:#444; }
+.bf-field input[type=text], .bf-field input[type=url], .bf-field textarea {
+  width:100%; padding:.7rem .9rem; border:1px solid #d8d2c4; border-radius:6px; font-size:.95rem; font-family:inherit;
+}
+.bf-hint { font-size:.78rem; color:#999; margin-top:.3rem; }
+.bf-preview { margin-top:.75rem; max-width:280px; border-radius:6px; border:1px solid #e8e1d1; display:none; }
+</style>
+
+<h1>{{ "Edit" if post else "New" }} Blog Post</h1>
+
+<form method="post" style="background:#fff; padding:2rem; border-radius:8px; border:1px solid #e8e1d1; max-width:800px;">
+  <div class="bf-field">
+    <label>Title *</label>
+    <input type="text" name="title" value="{{ post.title if post else '' }}" required />
+  </div>
+
+  {% if post %}
+  <div class="bf-field">
+    <label>URL Slug</label>
+    <input type="text" name="slug" value="{{ post.slug }}" />
+    <p class="bf-hint">⚠️ Changing this changes the post's live URL. Only edit if needed.</p>
+  </div>
+  {% endif %}
+
+  <div class="bf-field">
+    <label>Excerpt (shown on blog listing page)</label>
+    <textarea name="excerpt" rows="2">{{ post.excerpt if post else '' }}</textarea>
+  </div>
+
+  <div class="bf-field">
+    <label>Cover Image URL (Cloudinary)</label>
+    <input type="url" id="coverImageInput" name="cover_image" value="{{ post.cover_image if post and post.cover_image else '' }}" placeholder="https://res.cloudinary.com/..." oninput="previewCover(this.value)" />
+    <p class="bf-hint">Upload your image to Cloudinary the same way you do for products, then paste the URL here.</p>
+    <img id="coverPreview" class="bf-preview" src="{{ post.cover_image if post and post.cover_image else '' }}" style="{{ 'display:block;' if post and post.cover_image else '' }}" />
+  </div>
+
+  <div class="bf-field">
+    <label>Content (Markdown supported: ## headers, **bold**, [link](url), - bullet lists)</label>
+    <textarea name="content" rows="18" style="font-family:monospace; font-size:.88rem;" required>{{ post.content if post else '' }}</textarea>
+    <p class="bf-hint">Separate paragraphs with a blank line. Use ## for section headers.</p>
+  </div>
+
+  <div class="bf-field">
+    <label>Author</label>
+    <input type="text" name="author" value="{{ post.author if post else 'ZELO LIVE BOUTIQUE' }}" />
+  </div>
+
+  <div class="bf-field">
+    <label><input type="checkbox" name="is_active" style="width:auto; margin-right:.5rem;" {{ 'checked' if not post or post.is_active }} /> Published (visible on site)</label>
+  </div>
+
+  <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+    <button type="submit" class="btn btn-primary">{{ "Update" if post else "Publish" }} Post</button>
+    <a href="{{ url_for('admin_blog') }}" class="btn btn-outline">Cancel</a>
+  </div>
+</form>
+
+<script>
+function previewCover(url) {
+  const img = document.getElementById('coverPreview');
+  if (url && url.startsWith('http')) {
+    img.src = url;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}
