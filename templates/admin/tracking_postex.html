@@ -68,12 +68,17 @@ async function fetchTracking() {
     const data = await response.json();
     rawPre.textContent = JSON.stringify(data, null, 2);
 
-    if (data.error || data.statusCode !== "200") {
-      timelineDiv.innerHTML = `<p style="color:#ef4444;">Error: ${data.error || data.statusMessage}</p>`;
+    if (data.error || String(data.statusCode) !== "200" || !data.dist) {
+      const reason = data.error || data.statusMessage || 'No tracking data found for this number. It may not be registered with PostEx yet, or the number may be incorrect.';
+      timelineDiv.innerHTML = `<p style="color:#ef4444;">⚠️ ${reason}</p>`;
       return;
     }
 
     const history = data.dist.transactionStatusHistory || [];
+    if (history.length === 0) {
+      timelineDiv.innerHTML = `<p style="color:#888;">No status history available yet for this tracking number.</p>`;
+      return;
+    }
     timelineDiv.innerHTML = '';
 
     history.forEach((event, index) => {

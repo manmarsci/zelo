@@ -203,12 +203,17 @@ function quickTrack(trackingNumber) {
   })
   .then(r => r.json())
   .then(data => {
-    if (data.error || data.statusCode !== "200") {
-      content.innerHTML = '<p style="color:#ef4444;">❌ Error: ' + (data.error || data.statusMessage) + '</p>';
+    if (data.error || String(data.statusCode) !== "200" || !data.dist) {
+      const reason = data.error || data.statusMessage || 'No tracking data found. Number may be incorrect or not yet registered with the courier.';
+      content.innerHTML = '<p style="color:#ef4444;">⚠️ ' + reason + '</p>';
       return;
     }
-    
+
     const history = data.dist.transactionStatusHistory || [];
+    if (history.length === 0) {
+      content.innerHTML = '<p style="color:#888;">No status history available yet for this tracking number.</p>';
+      return;
+    }
     let html = '<div style="position:relative; padding-left:10px;">';
     
     history.forEach((event, index) => {

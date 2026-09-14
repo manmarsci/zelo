@@ -74,12 +74,16 @@
                 
                 const data = await response.json();
 
-                if (data.error || data.statusCode !== "200") {
-                    container.innerHTML = '<p class="error"> Tracking not found. Please check the number.</p>';
+                if (data.error || String(data.statusCode) !== "200" || !data.dist) {
+                    container.innerHTML = '<p class="error">Tracking not found. Please check the number and try again.</p>';
                     return;
                 }
 
                 const history = data.dist.transactionStatusHistory || [];
+                if (history.length === 0) {
+                    container.innerHTML = '<p class="error">No status updates yet for this order.</p>';
+                    return;
+                }
                 let html = '<div class="timeline">';
 
                 history.forEach((event, index) => {
