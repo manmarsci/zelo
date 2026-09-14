@@ -72,6 +72,34 @@ def slugify(text):
     text = re.sub(r"[^\w\s-]", "", text)
     return re.sub(r"[\s_-]+", "-", text)
 
+def record_customer_delivery(tracking_number, courier_name=None):
+    """Look up the courier slip for this tracking number, find the matching
+    customer by phone, and append a delivery log entry to their account.
+    Safe to call repeatedly — will not duplicate an entry for the same
+    tracking number."""
+    slip = query_one("SELECT * FROM courier_slips WHERE tracking_number = ?", [tracking_number])
+    if not slip or not slip.get("customer_phone"):
+        return
+
+    user = query_one("SELECT id, delivery_log FROM users WHERE phone = ?", [slip["customer_phone"]])
+    if not user:
+        return
+
+    try:
+        log = json.loads(user["delivery_log"]) if user["delivery_log"] else []
+    except Exception:
+        log = []
+
+    if any(entry.get("tracking_number") == tracking_number for entry in log):
+        return  # already recorded
+
+    log.append({
+        "tracking_number": tracking_number,
+        "courier_name": courier_name or slip.get("courier_name") or "",
+        "delivered_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+    })
+    execute("UPDATE users SET delivery_log = ? WHERE id = ?", [json.dumps(log), user["id"]])
+
 
 def login_required(f):
     @wraps(f)
@@ -1512,10 +1540,25 @@ def admin_postex_tracking():
             timeout=10
         )
 
-        if response.status_code == 200:
-            return jsonify(response.json())
-        else:
+        if response.status_code != 200:
             return jsonify({"error": f"PostEx API returned status {response.status_code}"}), response.status_code
+
+        result = response.json()
+
+        # Detect "delivered" and record it against the matching customer
+        try:
+            history = result.get("dist", {}).get("transactionStatusHistory", [])
+            is_delivered = any(
+                ev.get("transactionStatusMessageCode") == "0005"
+                or "delivered" in (ev.get("transactionStatusMessage") or "").lower()
+                for ev in history
+            )
+            if is_delivered:
+                record_customer_delivery(tracking_number)
+        except Exception as e:
+            print(f"Delivery auto-record check failed: {e}")
+
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1681,6 +1724,14 @@ def get_video_id(url):
     return match.group(1) if match else ''
 
 app.jinja_env.globals.update(get_video_id=get_video_id)
+
+def from_json_filter(value):
+    try:
+        return json.loads(value) if value else []
+    except Exception:
+        return []
+
+app.jinja_env.filters['from_json'] = from_json_filter
 
 # ---------- Product Feeds ----------
 @app.route("/feeds/google-merchant.xml")
