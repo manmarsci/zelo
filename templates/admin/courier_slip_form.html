@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Edit Courier Slip</h1>
+
+<div style="background:#fff; padding:2rem; border-radius:8px; border:1px solid #e8e1d1; max-width:800px;">
+  <form method="post">
+    <input type="hidden" name="return_to" value="{{ return_to }}" />
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Name</label>
+        <input type="text" name="customer_name" value="{{ slip.customer_name }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Customer Phone</label>
+        <input type="tel" name="customer_phone" value="{{ slip.customer_phone }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:.4rem; color:#c84b31;">Tracking Number *</label>
+        <input type="text" name="tracking_number" value="{{ slip.tracking_number }}" required
+               style="width:100%; padding:.75rem; border:2px solid #c9a961; border-radius:6px; font-family:monospace; font-size:1.1rem; letter-spacing:1px;" />
+        <p class="muted small" style="margin-top:.4rem;">Fix typos here — this is the field the scanner sometimes misreads.</p>
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Courier</label>
+        <select name="courier_name" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;">
+          <option value="">-- Select --</option>
+          {% for c in ['PostEx','TCS','Leopards Courier','CallCourier','Trax','M&P (Pakistan Post)','BlueEx','Swyft Logistics','Other'] %}
+          <option value="{{ c }}" {{ 'selected' if slip.courier_name == c }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">City</label>
+        <input type="text" name="city" value="{{ slip.city }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Address</label>
+        <textarea name="address" rows="2" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:inherit;">{{ slip.address }}</textarea>
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Description</label>
+        <input type="text" name="description" value="{{ slip.description }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Charges</label>
+        <input type="text" name="charges" value="{{ slip.charges }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+      <div>
+        <label style="display:block; font-size:.85rem; font-weight:500; margin-bottom:.4rem;">Slip Date</label>
+        <input type="text" name="slip_date" value="{{ slip.slip_date }}" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px;" />
+      </div>
+    </div>
+
+    <div style="display:flex; gap:1rem; margin-top:2rem;">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ return_to or url_for('admin_customers') }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+
+  <form method="post" action="{{ url_for('admin_courier_slip_delete', sid=slip.id) }}"
+        onsubmit="return confirm('Delete this courier slip permanently?')" style="margin-top:1.5rem; border-top:1px solid #e8e1d1; padding-top:1.5rem;">
+    <button class="btn-link text-danger">Delete this slip</button>
+  </form>
+</div>
+{% endblock %}

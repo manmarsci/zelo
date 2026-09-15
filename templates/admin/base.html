@@ -151,6 +151,7 @@
       <a href="{{ url_for('feed_google_merchant') }}" target="_blank">📡 Product Feed (XML)</a>
       <a href="{{ url_for('feed_products_csv') }}">⬇️ Product Feed (CSV)</a>      
       <a href="/admin/tracking/postex" class="{{ 'active' if request.path=='/admin/tracking/postex' }}">🚚 PostEx Tracking</a>
+      <a href="{{ url_for('admin_llm_playground') }}" class="{{ 'active' if request.endpoint=='admin_llm_playground' }}">🤖 LLM Playground</a>
       <hr/>
       <a href="{{ url_for('index') }}" target="_blank">🌐 View Store</a>
       <a href="{{ url_for('logout') }}">↩ Logout</a>

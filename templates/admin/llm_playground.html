@@ -1,0 +1,174 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.llm-wrap { display:grid; grid-template-columns:260px 1fr; gap:1.5rem; height:calc(100vh - 140px); }
+.llm-sidebar { background:#fff; border:1px solid #e8e1d1; border-radius:8px; padding:1.25rem; overflow-y:auto; }
+.llm-sidebar h3 { font-size:.85rem; text-transform:uppercase; letter-spacing:1px; color:#8b7355; margin-bottom:.75rem; }
+.llm-provider-group { margin-bottom:1.5rem; }
+.llm-model-btn {
+  display:block; width:100%; text-align:left; padding:.65rem .8rem; margin-bottom:.4rem;
+  border:1px solid #e8e1d1; border-radius:6px; background:#fbf7ec; cursor:pointer; font-size:.85rem; color:#1a1a1a;
+}
+.llm-model-btn.active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+.llm-chat-col { display:flex; flex-direction:column; background:#fff; border:1px solid #e8e1d1; border-radius:8px; overflow:hidden; }
+.llm-chat-header { padding:1rem 1.25rem; border-bottom:1px solid #e8e1d1; display:flex; justify-content:space-between; align-items:center; background:#fbf7ec; }
+.llm-chat-header strong { font-size:.95rem; }
+.llm-stats { display:flex; gap:1rem; font-size:.78rem; color:#8b7355; }
+.llm-messages { flex:1; overflow-y:auto; padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }
+.llm-msg { max-width:75%; padding:.85rem 1.1rem; border-radius:10px; font-size:.9rem; line-height:1.55; white-space:pre-wrap; }
+.llm-msg.user { align-self:flex-end; background:#1a1a1a; color:#fff; }
+.llm-msg.assistant { align-self:flex-start; background:#f5f1e8; color:#1a1a1a; }
+.llm-msg-meta { font-size:.7rem; opacity:.6; margin-top:.4rem; }
+.llm-input-row { display:flex; gap:.75rem; padding:1rem 1.25rem; border-top:1px solid #e8e1d1; }
+.llm-input-row textarea { flex:1; resize:none; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-family:inherit; font-size:.9rem; }
+.llm-input-row button { padding:.75rem 1.5rem; }
+.llm-empty { color:#999; text-align:center; margin-top:3rem; font-size:.9rem; }
+.llm-clear-btn { background:none; border:none; color:#c84b31; font-size:.8rem; cursor:pointer; text-decoration:underline; }
+</style>
+
+<h1>LLM Playground</h1>
+<p class="muted" style="margin-bottom:1.5rem;">Chat with Groq or Cerebras models directly. Token usage is shown per response.</p>
+
+<div class="llm-wrap">
+  <!-- Model selector sidebar -->
+  <div class="llm-sidebar">
+    <div class="llm-provider-group">
+      <h3>⚡ Groq</h3>
+      {% for m in llm_models.groq %}
+      <button class="llm-model-btn" data-provider="groq" data-model="{{ m.id }}" onclick="selectModel('groq', '{{ m.id }}', this)">{{ m.label }}</button>
+      {% endfor %}
+    </div>
+    <div class="llm-provider-group">
+      <h3>🧠 Cerebras</h3>
+      {% for m in llm_models.cerebras %}
+      <button class="llm-model-btn" data-provider="cerebras" data-model="{{ m.id }}" onclick="selectModel('cerebras', '{{ m.id }}', this)">{{ m.label }}</button>
+      {% endfor %}
+    </div>
+    <button class="llm-clear-btn" onclick="clearChat()">Clear conversation</button>
+  </div>
+
+  <!-- Chat column -->
+  <div class="llm-chat-col">
+    <div class="llm-chat-header">
+      <strong id="activeModelLabel">Select a model to start</strong>
+      <div class="llm-stats" id="sessionStats">
+        Session: <span id="statInput">0</span> in / <span id="statOutput">0</span> out / <span id="statTotal">0</span> total tokens
+      </div>
+    </div>
+    <div class="llm-messages" id="llmMessages">
+      <div class="llm-empty" id="llmEmpty">Pick a model on the left, then start chatting.</div>
+    </div>
+    <div class="llm-input-row">
+      <textarea id="llmInput" rows="2" placeholder="Type a message... (Shift+Enter for newline)" disabled></textarea>
+      <button class="btn btn-primary" id="llmSendBtn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentProvider = null;
+let currentModel = null;
+let conversation = [];
+let sessionTokens = { input: 0, output: 0, total: 0 };
+
+function selectModel(provider, model, btn) {
+  currentProvider = provider;
+  currentModel = model;
+  document.querySelectorAll('.llm-model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('activeModelLabel').textContent = `${provider === 'groq' ? 'Groq' : 'Cerebras'} — ${btn.textContent}`;
+  document.getElementById('llmInput').disabled = false;
+  document.getElementById('llmSendBtn').disabled = false;
+  document.getElementById('llmInput').focus();
+}
+
+function clearChat() {
+  conversation = [];
+  sessionTokens = { input: 0, output: 0, total: 0 };
+  updateStats();
+  const messagesDiv = document.getElementById('llmMessages');
+  messagesDiv.innerHTML = '<div class="llm-empty" id="llmEmpty">Conversation cleared. Keep chatting or pick a new model.</div>';
+}
+
+function updateStats() {
+  document.getElementById('statInput').textContent = sessionTokens.input;
+  document.getElementById('statOutput').textContent = sessionTokens.output;
+  document.getElementById('statTotal').textContent = sessionTokens.total;
+}
+
+function appendMessage(role, text, usage) {
+  const messagesDiv = document.getElementById('llmMessages');
+  const empty = document.getElementById('llmEmpty');
+  if (empty) empty.remove();
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'llm-msg ' + role;
+  msgEl.textContent = text;
+
+  if (usage && role === 'assistant') {
+    const meta = document.createElement('div');
+    meta.className = 'llm-msg-meta';
+    meta.textContent = `${usage.input_tokens ?? '?'} in / ${usage.output_tokens ?? '?'} out / ${usage.total_tokens ?? '?'} total tokens`;
+    msgEl.appendChild(meta);
+  }
+
+  messagesDiv.appendChild(msgEl);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('llmInput');
+  const text = input.value.trim();
+  if (!text || !currentProvider || !currentModel) return;
+
+  appendMessage('user', text);
+  conversation.push({ role: 'user', content: text });
+  input.value = '';
+
+  const sendBtn = document.getElementById('llmSendBtn');
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Thinking...';
+
+  try {
+    const response = await fetch('{{ url_for("admin_llm_chat") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: currentProvider,
+        model: currentModel,
+        messages: conversation
+      })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      appendMessage('assistant', '⚠️ Error: ' + (result.error || 'Unknown error'));
+      return;
+    }
+
+    appendMessage('assistant', result.reply, result.usage);
+    conversation.push({ role: 'assistant', content: result.reply });
+
+    if (result.usage) {
+      sessionTokens.input += result.usage.input_tokens || 0;
+      sessionTokens.output += result.usage.output_tokens || 0;
+      sessionTokens.total += result.usage.total_tokens || 0;
+      updateStats();
+    }
+  } catch (err) {
+    appendMessage('assistant', '⚠️ Network error: ' + err.message);
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+  }
+}
+
+document.getElementById('llmInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+</script>
+{% endblock %}

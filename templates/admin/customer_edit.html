@@ -86,6 +86,7 @@
             <td class="muted small">{{ slip.created_at }}</td>
             <td>
               <div style="display:flex; gap:5px; align-items:center; justify-content:flex-start;">
+    <a href="{{ url_for('admin_courier_slip_edit', sid=slip.id, return_to=request.path) }}" class="btn btn-outline" style="padding:0.4rem 0.6rem; font-size:0.85rem; margin:0; line-height:1;">✏️ Edit</a>
     <button type="button" onclick="quickTrack('{{ slip.tracking_number }}')" class="btn btn-outline" style="padding:0.4rem 0.6rem; font-size:0.85rem; margin:0; line-height:1;">🚚</button>
     <button type="button" onclick="shareTrackingLink('{{ slip.tracking_number }}', '{{ slip.customer_name }}')" class="btn" style="padding:0.4rem 0.8rem; font-size:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; margin:0; line-height:1;"> Share</button>
 </div>

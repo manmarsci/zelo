@@ -1244,6 +1244,133 @@ def admin_map():
 
     return render_template("admin/map.html", map_data=map_data, map_data_list=map_data_list, max_count=max_count)
 
+# ---------- Admin: LLM Playground ----------
+LLM_MODELS = {
+    "groq": [
+        {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B Versatile"},
+        {"id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B Instant"},
+        {"id": "qwen/qwen3.6-27b", "label": "Qwen 3.6 27B"},
+        {"id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B"},
+        {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B"},
+    ],
+    "cerebras": [
+        {"id": "llama-3.3-70b", "label": "Llama 3.3 70B"},
+        {"id": "llama3.1-8b", "label": "Llama 3.1 8B"},
+        {"id": "qwen-3-32b", "label": "Qwen 3 32B"},
+        {"id": "gpt-oss-120b", "label": "GPT-OSS 120B"},
+    ]
+}
+
+
+@app.route("/admin/llm-playground")
+@admin_required
+def admin_llm_playground():
+    return render_template("admin/llm_playground.html", llm_models=LLM_MODELS)
+
+
+@app.route("/admin/llm-playground/chat", methods=["POST"])
+@admin_required
+def admin_llm_chat():
+    data = request.get_json()
+    provider = data.get("provider")
+    model = data.get("model")
+    messages = data.get("messages", [])
+
+    if not provider or not model or not messages:
+        return jsonify({"error": "provider, model, and messages are required"}), 400
+
+    try:
+        if provider == "groq":
+            resp = groq_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+            )
+            reply = resp.choices[0].message.content
+            usage = {
+                "input_tokens": resp.usage.prompt_tokens if resp.usage else None,
+                "output_tokens": resp.usage.completion_tokens if resp.usage else None,
+                "total_tokens": resp.usage.total_tokens if resp.usage else None,
+            }
+
+        elif provider == "cerebras":
+            headers = {
+                "Authorization": f"Bearer {os.getenv('CEREBRAS_API_KEY')}",
+                "Content-Type": "application/json"
+            }
+            payload = {"model": model, "messages": messages, "temperature": 0.7}
+            r = requests.post("https://api.cerebras.ai/v1/chat/completions",
+                              json=payload, headers=headers, timeout=60)
+            if r.status_code != 200:
+                return jsonify({"error": f"Cerebras API error: {r.status_code} — {r.text[:300]}"}), 500
+            result = r.json()
+            reply = result["choices"][0]["message"]["content"]
+            usage_raw = result.get("usage", {})
+            usage = {
+                "input_tokens": usage_raw.get("prompt_tokens"),
+                "output_tokens": usage_raw.get("completion_tokens"),
+                "total_tokens": usage_raw.get("total_tokens"),
+            }
+
+        else:
+            return jsonify({"error": f"Unknown provider: {provider}"}), 400
+
+        return jsonify({"success": True, "reply": reply, "usage": usage})
+
+    except Exception as e:
+        print(f"LLM Playground error ({provider}/{model}): {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/admin/courier-slip/<int:sid>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_courier_slip_edit(sid):
+    slip = query_one("SELECT * FROM courier_slips WHERE id = ?", [sid])
+    if not slip:
+        abort(404)
+
+    if request.method == "POST":
+        f = request.form
+        new_tracking = f.get("tracking_number", "").strip()
+
+        # Prevent accidentally duplicating another slip's tracking number
+        if new_tracking != slip["tracking_number"]:
+            clash = query_one("SELECT id FROM courier_slips WHERE tracking_number = ? AND id != ?",
+                              [new_tracking, sid])
+            if clash:
+                flash(f"Tracking number {new_tracking} is already used by another slip.", "error")
+                return redirect(url_for("admin_courier_slip_edit", sid=sid))
+
+        execute("""
+            UPDATE courier_slips SET
+                customer_name=?, customer_phone=?, city=?, address=?,
+                tracking_number=?, courier_name=?, description=?, charges=?, slip_date=?
+            WHERE id=?
+        """, [
+            f.get("customer_name", "").strip().upper(),
+            f.get("customer_phone", "").strip(),
+            f.get("city", "").strip().upper(),
+            f.get("address", "").strip(),
+            new_tracking,
+            f.get("courier_name", "").strip(),
+            f.get("description", "").strip(),
+            f.get("charges", "").strip(),
+            f.get("slip_date", "").strip(),
+            sid
+        ])
+        flash("Courier slip updated.", "success")
+        return redirect(request.form.get("return_to") or url_for("admin_customers"))
+
+    return render_template("admin/courier_slip_form.html", slip=slip,
+                           return_to=request.args.get("return_to", ""))
+
+
+@app.route("/admin/courier-slip/<int:sid>/delete", methods=["POST"])
+@admin_required
+def admin_courier_slip_delete(sid):
+    execute("DELETE FROM courier_slips WHERE id = ?", [sid])
+    flash("Courier slip deleted.", "success")
+    return redirect(request.referrer or url_for("admin_customers"))
 
 # ---------- Admin: Courier Scanner (GET) ----------
 @app.route("/admin/courier-scanner")
