@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
-from groq import Groq
 import os
 # Must happen before duckdb is imported/used — Vercel's filesystem is read-only
 # except /tmp, and duckdb needs a resolvable home directory.
@@ -15,6 +14,9 @@ from datetime import datetime
 import duckdb
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
+from groq import Groq
+from google import genai
+from google.genai import types as genai_types
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.environ.get("FLASK_SECRET_KEY", "super-secret-key-for-sessions"))
@@ -22,7 +24,11 @@ app.secret_key = os.environ.get("SECRET_KEY", os.environ.get("FLASK_SECRET_KEY",
 SITE_URL = os.getenv("SITE_URL", "https://zeloliveboutique.manmarsci.com").rstrip("/")
 app.jinja_env.globals.update(site_url=SITE_URL)
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Both clients are guarded: if a key is missing, the client stays None instead of
+# crashing the whole app at import time. _call_llm() raises a clean per-request
+# error in that case, which the playground UI already knows how to display.
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY")) if os.getenv("GROQ_API_KEY") else None
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) if os.getenv("GEMINI_API_KEY") else None
 
 DELIVERY_CHARGES = float(os.getenv("DELIVERY_CHARGES", 150))
 FREE_DELIVERY_ABOVE = float(os.getenv("FREE_DELIVERY_ABOVE", 3000))
@@ -1245,27 +1251,167 @@ def admin_map():
     return render_template("admin/map.html", map_data=map_data, map_data_list=map_data_list, max_count=max_count)
 
 # ---------- Admin: LLM Playground ----------
+# NOTE on maintenance: every one of these providers deprecates/renames model IDs
+# on a rolling basis (Cerebras in particular churns its public-endpoint catalog
+# every few weeks). If a model in this list starts always showing red/failing in
+# "Check Status", it has likely been retired upstream — check the provider's own
+# model/deprecation page and swap the id here rather than assuming it's a bug in
+# this app. Last verified against provider docs: September 2026.
 LLM_MODELS = {
     "groq": [
-        {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B Versatile"},
-        {"id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B Instant"},
-        {"id": "qwen/qwen3.6-27b", "label": "Qwen 3.6 27B"},
-        {"id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B"},
-        {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B"},
+        {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B Versatile", "desc": "Meta's flagship, strong general reasoning"},
+        {"id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B Instant", "desc": "Fastest, lightweight tasks"},
+        {"id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B", "desc": "OpenAI open-weight, strong reasoning"},
+        {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B", "desc": "Smaller OpenAI open-weight model"},
+        {"id": "qwen/qwen3-32b", "label": "Qwen 3 32B", "desc": "Strong multilingual + coding"},
+        {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Multimodal (text + image), 17B active params"},
+        {"id": "moonshotai/kimi-k2-instruct-0905", "label": "Kimi K2", "desc": "Moonshot AI's large agentic/coding model"},
     ],
     "cerebras": [
-        {"id": "llama-3.3-70b", "label": "Llama 3.3 70B"},
-        {"id": "llama3.1-8b", "label": "Llama 3.1 8B"},
-        {"id": "qwen-3-32b", "label": "Qwen 3 32B"},
-        {"id": "gpt-oss-120b", "label": "GPT-OSS 120B"},
+        {"id": "gpt-oss-120b", "label": "GPT-OSS 120B", "desc": "OpenAI open-weight on Cerebras wafer-scale speed"},
+        {"id": "qwen-3.8-27b", "label": "Qwen 3.8 27B", "desc": "Current public-endpoint Qwen tier on Cerebras"},
+    ],
+    "openrouter": [
+        {"id": "anthropic/claude-sonnet-4.5", "label": "Claude Sonnet 4.5", "desc": "Anthropic's flagship coding/reasoning model"},
+        {"id": "openai/gpt-5.1", "label": "GPT-5.1", "desc": "OpenAI's latest flagship"},
+        {"id": "google/gemini-2.5-pro", "label": "Gemini 2.5 Pro (via OpenRouter)", "desc": "Google flagship, long context"},
+        {"id": "deepseek/deepseek-chat", "label": "DeepSeek Chat", "desc": "Strong reasoning, very cost-efficient"},
+        {"id": "meta-llama/llama-3.3-70b-instruct", "label": "Llama 3.3 70B", "desc": "General-purpose open model"},
+        {"id": "qwen/qwen3-max", "label": "Qwen3 Max", "desc": "Alibaba's flagship reasoning model"},
+        {"id": "openrouter/free", "label": "Free Model Router", "desc": "Auto-picks best available free model"},
+    ],
+    "gemini": [
+        {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "desc": "Google's flagship, strongest reasoning (retiring Oct 16, 2026)"},
+        {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "desc": "Fast, cost-efficient, strong quality (retiring Oct 16, 2026)"},
+        {"id": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash-Lite", "desc": "Cheapest, lowest-latency current-gen option"},
+        {"id": "gemini-3.5-flash", "label": "Gemini 3.5 Flash", "desc": "Newer-gen Flash, no announced shutdown date"},
     ]
 }
+
+PROVIDER_META = {
+    "groq": {"label": "⚡ Groq", "color": "#f97316"},
+    "cerebras": {"label": "🧠 Cerebras", "color": "#8b5cf6"},
+    "openrouter": {"label": "🌐 OpenRouter", "color": "#06b6d4"},
+    "gemini": {"label": "✨ Gemini", "color": "#3b82f6"},
+}
+
+
+def _call_llm(provider, model, messages, max_tokens=None):
+    """Shared call path used by both health check and chat. Returns (reply_text, usage_dict)."""
+    if provider == "groq":
+        if not groq_client:
+            raise RuntimeError("GROQ_API_KEY is not set on the server.")
+        resp = groq_client.chat.completions.create(
+            model=model, messages=messages, temperature=0.7,
+            max_tokens=max_tokens
+        )
+        reply = resp.choices[0].message.content
+        usage = {
+            "input_tokens": resp.usage.prompt_tokens if resp.usage else None,
+            "output_tokens": resp.usage.completion_tokens if resp.usage else None,
+            "total_tokens": resp.usage.total_tokens if resp.usage else None,
+        }
+        return reply, usage
+
+    elif provider == "cerebras":
+        api_key = os.getenv("CEREBRAS_API_KEY")
+        if not api_key:
+            raise RuntimeError("CEREBRAS_API_KEY is not set on the server.")
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        payload = {"model": model, "messages": messages, "temperature": 0.7}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        r = requests.post("https://api.cerebras.ai/v1/chat/completions",
+                          json=payload, headers=headers, timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"Cerebras {r.status_code}: {r.text[:300]}")
+        result = r.json()
+        reply = result["choices"][0]["message"]["content"]
+        u = result.get("usage", {})
+        usage = {"input_tokens": u.get("prompt_tokens"), "output_tokens": u.get("completion_tokens"),
+                  "total_tokens": u.get("total_tokens")}
+        return reply, usage
+
+    elif provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENROUTER_API_KEY is not set on the server.")
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": SITE_URL,
+            "X-Title": "ZELO LLM Playground"
+        }
+        payload = {"model": model, "messages": messages}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        r = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                          json=payload, headers=headers, timeout=45)
+        if r.status_code != 200:
+            raise RuntimeError(f"OpenRouter {r.status_code}: {r.text[:300]}")
+        result = r.json()
+        reply = result["choices"][0]["message"]["content"]
+        u = result.get("usage", {})
+        usage = {"input_tokens": u.get("prompt_tokens"), "output_tokens": u.get("completion_tokens"),
+                  "total_tokens": u.get("total_tokens")}
+        return reply, usage
+
+    elif provider == "gemini":
+        if not gemini_client:
+            raise RuntimeError("GEMINI_API_KEY is not set on the server.")
+        # Convert OpenAI-style messages into a single prompt (simple, reliable for this tool)
+        prompt_parts = []
+        for m in messages:
+            role = "User" if m["role"] == "user" else "Assistant"
+            prompt_parts.append(f"{role}: {m['content']}")
+        prompt = "\n\n".join(prompt_parts)
+
+        resp = gemini_client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=max_tokens
+            ) if max_tokens else genai_types.GenerateContentConfig(temperature=0.7)
+        )
+        reply = resp.text
+        usage = {"input_tokens": None, "output_tokens": None, "total_tokens": None}
+        if hasattr(resp, "usage_metadata") and resp.usage_metadata:
+            um = resp.usage_metadata
+            usage = {
+                "input_tokens": getattr(um, "prompt_token_count", None),
+                "output_tokens": getattr(um, "candidates_token_count", None),
+                "total_tokens": getattr(um, "total_token_count", None),
+            }
+        return reply, usage
+
+    else:
+        raise RuntimeError(f"Unknown provider: {provider}")
 
 
 @app.route("/admin/llm-playground")
 @admin_required
 def admin_llm_playground():
-    return render_template("admin/llm_playground.html", llm_models=LLM_MODELS)
+    return render_template("admin/llm_playground.html", llm_models=LLM_MODELS, provider_meta=PROVIDER_META)
+
+
+@app.route("/admin/llm-playground/health", methods=["POST"])
+@admin_required
+def admin_llm_health():
+    data = request.get_json(force=True, silent=True) or {}
+    provider = data.get("provider")
+    model = data.get("model")
+    if not provider or not model:
+        return jsonify({"ok": False, "error": "provider and model required"}), 400
+
+    start = time.time()
+    try:
+        _call_llm(provider, model, [{"role": "user", "content": "Reply with just: OK"}], max_tokens=10)
+        elapsed = round((time.time() - start) * 1000)
+        return jsonify({"ok": True, "latency_ms": elapsed})
+    except Exception as e:
+        elapsed = round((time.time() - start) * 1000)
+        return jsonify({"ok": False, "error": str(e)[:200], "latency_ms": elapsed})
 
 
 @app.route("/admin/llm-playground/chat", methods=["POST"])
@@ -1284,55 +1430,8 @@ def admin_llm_chat():
         return jsonify({"error": "provider, model, and messages are required"}), 400
 
     try:
-        if provider == "groq":
-            resp = groq_client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-            )
-            reply = resp.choices[0].message.content
-            usage = {
-                "input_tokens": resp.usage.prompt_tokens if resp.usage else None,
-                "output_tokens": resp.usage.completion_tokens if resp.usage else None,
-                "total_tokens": resp.usage.total_tokens if resp.usage else None,
-            }
-
-        elif provider == "cerebras":
-            api_key = os.getenv("CEREBRAS_API_KEY")
-            if not api_key:
-                return jsonify({"error": "CEREBRAS_API_KEY is not set in the server environment. Add it in Vercel → Project Settings → Environment Variables and redeploy."}), 500
-
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {"model": model, "messages": messages, "temperature": 0.7}
-
-            try:
-                r = requests.post("https://api.cerebras.ai/v1/chat/completions",
-                                  json=payload, headers=headers, timeout=30)
-            except requests.exceptions.RequestException as net_err:
-                print(f"Cerebras network error: {net_err}")
-                return jsonify({"error": f"Could not reach Cerebras API: {net_err}"}), 502
-
-            if r.status_code != 200:
-                print(f"Cerebras API error {r.status_code}: {r.text[:500]}")
-                return jsonify({"error": f"Cerebras API error {r.status_code}: {r.text[:300]}"}), 500
-
-            result = r.json()
-            reply = result["choices"][0]["message"]["content"]
-            usage_raw = result.get("usage", {})
-            usage = {
-                "input_tokens": usage_raw.get("prompt_tokens"),
-                "output_tokens": usage_raw.get("completion_tokens"),
-                "total_tokens": usage_raw.get("total_tokens"),
-            }
-
-        else:
-            return jsonify({"error": f"Unknown provider: {provider}"}), 400
-
+        reply, usage = _call_llm(provider, model, messages)
         return jsonify({"success": True, "reply": reply, "usage": usage})
-
     except Exception as e:
         import traceback
         print(f"LLM Playground error ({provider}/{model}): {e}")
@@ -1519,7 +1618,7 @@ def admin_smart_scan():
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
 
-    selected_model = request.form.get('model', 'qwen/qwen3.6-27b')
+    selected_model = request.form.get('model', 'meta-llama/llama-4-scout-17b-16e-instruct')
 
     try:
         img_bytes = file.read()
