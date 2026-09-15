@@ -1296,6 +1296,43 @@ PROVIDER_META = {
 }
 
 
+# Models that can actually accept an IMAGE as input, for the courier-slip scanner.
+# This is intentionally a much shorter list than LLM_MODELS above — most text
+# models (llama-3.3-70b-versatile, gpt-oss-120b, deepseek/deepseek-chat, etc.)
+# cannot see images at all and will either error out or hallucinate a response
+# if you send one. Only list a model here once you've confirmed on the
+# provider's own docs that it supports image/vision input.
+#   - Groq: llama-4-maverick was deprecated Feb 20, 2026 in favor of gpt-oss-120b
+#     (text-only) — llama-4-scout is the only vision-capable Groq model left.
+#   - Cerebras: image input is Private Preview and ONLY on gemma-4-31b. It will
+#     403/404 unless your account has been granted preview access, separate
+#     from the billing/quota issue you're already seeing.
+VISION_MODELS = {
+    "groq": [
+        {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Only vision-capable Groq model currently available"},
+    ],
+    "cerebras": [
+        {"id": "gemma-4-31b", "label": "Gemma 4 31B", "desc": "Vision is Private Preview — needs Cerebras to grant access on your account"},
+    ],
+    "openrouter": [
+        {"id": "baidu/qianfan-ocr-fast:free", "label": "Qianfan OCR Fast (Free)", "desc": "Purpose-built for document OCR, no cost"},
+        {"id": "thinkingmachines/inkling:free", "label": "Inkling 41B (Free)", "desc": "Strong general multimodal, no cost"},
+        {"id": "thinkingmachines/inkling-small:free", "label": "Inkling Small 12B (Free)", "desc": "Faster/lighter, no cost"},
+        {"id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "label": "Nemotron 3 Nano Omni (Free)", "desc": "Vision + video, uses reasoning, no cost"},
+        {"id": "openrouter/free", "label": "Free Model Router", "desc": "Auto-picks best available free vision model"},
+        {"id": "openai/gpt-5.1", "label": "GPT-5.1", "desc": "Strong general-purpose vision + OCR (paid)"},
+        {"id": "anthropic/claude-sonnet-4.5", "label": "Claude Sonnet 4.5", "desc": "Very accurate on messy/rotated document photos (paid)"},
+        {"id": "google/gemini-2.5-pro", "label": "Gemini 2.5 Pro (via OpenRouter)", "desc": "Good OCR on cluttered layouts (paid)"},
+    ],
+    "gemini": [
+        {"id": "gemini-3.5-flash", "label": "Gemini 3.5 Flash", "desc": "Fast, current-gen, no announced shutdown"},
+        {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "desc": "Fast, reliable OCR (retiring Oct 16, 2026)"},
+        {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "desc": "Most accurate on hard-to-read slips (retiring Oct 16, 2026)"},
+        {"id": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash-Lite", "desc": "Cheapest option"},
+    ],
+}
+
+
 def _call_llm(provider, model, messages, max_tokens=None):
     """Shared call path used by both health check and chat. Returns (reply_text, usage_dict)."""
     if provider == "groq":
@@ -1493,7 +1530,7 @@ def admin_courier_slip_delete(sid):
 @app.route("/admin/courier-scanner")
 @admin_required
 def admin_courier_scanner():
-    return render_template("admin/courier_scanner.html")
+    return render_template("admin/courier_scanner.html", vision_models=VISION_MODELS, provider_meta=PROVIDER_META)
 
 
 @app.route("/admin/courier-scanner/update", methods=["POST"])
@@ -1576,11 +1613,13 @@ Rules:
 - Return ONLY the JSON, nothing else."""
 
 
-def call_gemini_vision_with_retry(img_bytes, mime_type, max_retries=3):
+def call_gemini_vision_with_retry(img_bytes, mime_type, model="gemini-3.5-flash", max_retries=3):
+    if not gemini_client:
+        raise RuntimeError("GEMINI_API_KEY is not set on the server.")
     for attempt in range(max_retries):
         try:
             resp = gemini_client.models.generate_content(
-                model="gemini-3.5-flash",
+                model=model,
                 contents=[
                     SMART_SCAN_PROMPT,
                     genai_types.Part.from_bytes(data=img_bytes, mime_type=mime_type)
@@ -1619,14 +1658,49 @@ def admin_smart_scan():
         return jsonify({"error": "No file selected"}), 400
 
     selected_model = request.form.get('model', 'meta-llama/llama-4-scout-17b-16e-instruct')
+    # 'provider' is the new, explicit way to pick a backend. Falls back to
+    # sniffing the old 'openrouter/'-prefix convention so any existing
+    # frontend that hasn't been updated yet keeps working.
+    provider = request.form.get('provider')
+    if not provider:
+        provider = "openrouter" if selected_model.startswith("openrouter/") else "groq"
 
     try:
         img_bytes = file.read()
         base64_image = base64.b64encode(img_bytes).decode('utf-8')
         mime_type = file.mimetype or 'image/jpeg'
 
-        if selected_model.startswith('openrouter/'):
-            openrouter_model = selected_model.replace('openrouter/', '')
+        if provider == "gemini":
+            resp = call_gemini_vision_with_retry(img_bytes, mime_type, model=selected_model)
+            content = resp.text.strip()
+
+        elif provider == "cerebras":
+            api_key = os.getenv("CEREBRAS_API_KEY")
+            if not api_key:
+                return jsonify({"error": "CEREBRAS_API_KEY is not set on the server."}), 500
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            payload = {
+                "model": selected_model,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": SMART_SCAN_PROMPT},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}}
+                    ]
+                }],
+                "temperature": 0.0,
+                "max_tokens": 500
+            }
+            response = requests.post("https://api.cerebras.ai/v1/chat/completions",
+                                      json=payload, headers=headers, timeout=30)
+            if response.status_code != 200:
+                print(f"Cerebras Vision API Error: {response.status_code} - {response.text}")
+                return jsonify({"error": f"Cerebras API error: {response.status_code}: {response.text[:200]}"}), 500
+            result = response.json()
+            content = result['choices'][0]['message']['content'].strip()
+
+        elif provider == "openrouter" or selected_model.startswith('openrouter/'):
+            openrouter_model = selected_model
 
             headers = {
                 "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
@@ -1643,25 +1717,7 @@ def admin_smart_scan():
                         "content": [
                             {
                                 "type": "text",
-                                "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
-
-Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
-{
-    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
-    "courier_name": "Courier company name (e.g., PostEx, TCS)",
-    "customer_name": "Consignee/Receiver/To name",
-    "customer_phone": "Phone number in format 03XXXXXXXXX",
-    "city": "Destination city",
-    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
-    "description": "Item description (e.g., CLOTH)",
-    "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
-    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
-}
-
-Rules:
-- If a field is not found, use empty string ""
-- Pakistani phone numbers start with 03 and are 11 digits
-- Return ONLY the JSON, nothing else."""
+                                "text": SMART_SCAN_PROMPT
                             },
                             {
                                 "type": "image_url",
@@ -1689,6 +1745,8 @@ Rules:
             result = response.json()
             content = result['choices'][0]['message']['content'].strip()
         else:
+            if not groq_client:
+                return jsonify({"error": "GROQ_API_KEY is not set on the server."}), 500
             response = groq_client.chat.completions.create(
                 model=selected_model,
                 messages=[
@@ -1697,25 +1755,7 @@ Rules:
                         "content": [
                             {
                                 "type": "text",
-                                "text": """You are an expert at extracting data from Pakistani courier slips (PostEx, TCS, Leopards, etc.).
-
-Extract the following information and return ONLY a valid JSON object. Do not include markdown formatting.
-{
-    "tracking_number": "The main tracking/AWB number EXACTLY as it appears. KEEP all dashes, hashes, and spaces.",
-    "courier_name": "Courier company name (e.g., PostEx, TCS)",
-    "customer_name": "Consignee/Receiver/To name",
-    "customer_phone": "Phone number in format 03XXXXXXXXX",
-    "city": "Destination city",
-    "address": "Clean delivery address. Fix OCR typos, ignore random symbols.",
-    "description": "Item description (e.g., CLOTH)",
-    "charges": "Key financial details (e.g., Payable: 305, Service: 200)",
-    "slip_date": "CRITICAL: Look at the bottom right corner, just above the bold text 'SHIPPER COPY'. Find the text starting with 'Booking Date:' and extract the date and time exactly as written (e.g., 2026-09-5 00:00)."
-}
-
-Rules:
-- If a field is not found, use empty string ""
-- Pakistani phone numbers start with 03 and are 11 digits
-- Return ONLY the JSON, nothing else."""
+                                "text": SMART_SCAN_PROMPT
                             },
                             {
                                 "type": "image_url",

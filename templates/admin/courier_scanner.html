@@ -10,21 +10,15 @@
       <div>
         <h3 style="margin-bottom:0.5rem;">1. Select AI Model</h3>
         <select id="aiModel" style="width:100%; padding:.75rem; border:1px solid #d8d2c4; border-radius:6px; font-size:.9rem;">
-          <optgroup label=" Best for Documents (Most Accurate)">
-            <option value="baidu/qianfan-ocr-fast:free">Qianfan OCR Fast — Free • Purpose-built for document OCR</option>
-            <option value="thinkingmachines/inkling:free">Inkling (41B) — Free • Strong general multimodal</option>
+          {% for provider, models in vision_models.items() %}
+          <optgroup label="{{ provider_meta[provider].label }}">
+            {% for m in models %}
+            <option value="{{ provider }}::{{ m.id }}">{{ m.label }} — {{ m.desc }}</option>
+            {% endfor %}
           </optgroup>
-
-          <optgroup label=" Fast & Reliable Free Models">
-            <option value="thinkingmachines/inkling-small:free">Inkling Small (12B) — Free • Faster, lighter</option>
-            <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Nemotron 3 Nano Omni — Free • Vision+video, uses reasoning</option>
-          </optgroup>
-
-          <optgroup label="🔄 Auto & Fallback">
-            <option value="openrouter/free">Free Model Router (openrouter/free) — Auto-picks best free vision model</option>
-            <option value="qwen/qwen3.6-27b">Qwen 27B (Groq) — Paid fallback, fast & reliable</option>
-          </optgroup>
+          {% endfor %}
         </select>
+        <p class="muted small" style="margin-top:.4rem; margin-bottom:0;">Only models that can actually read an image are listed here — text-only models are left out on purpose.</p>
       </div>
       <div>
         <h3 style="margin-bottom:0.5rem;">2. Upload Slip Images</h3>
@@ -60,8 +54,9 @@
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const selectedModel = aiModelSelect.value;
-    statusDiv.innerHTML = `🤖 Using ${selectedModel.split(' — ')[0]} to analyze ${files.length} image(s)...`;
+    const [selectedProvider, selectedModel] = aiModelSelect.value.split('::');
+    const selectedLabel = aiModelSelect.options[aiModelSelect.selectedIndex].textContent.split(' — ')[0];
+    statusDiv.innerHTML = `🤖 Using ${selectedLabel} to analyze ${files.length} image(s)...`;
     slipsContainer.innerHTML = ''; 
     slipCounter = 0;
     updateCount();
@@ -73,6 +68,7 @@
       statusDiv.innerHTML = `🤖 Analyzing image ${i + 1} of ${files.length}...`;
       const formData = new FormData();
       formData.append('image', files[i]);
+      formData.append('provider', selectedProvider);
       formData.append('model', selectedModel);
 
       try {
