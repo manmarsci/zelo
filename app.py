@@ -1271,7 +1271,11 @@ def admin_llm_playground():
 @app.route("/admin/llm-playground/chat", methods=["POST"])
 @admin_required
 def admin_llm_chat():
-    data = request.get_json()
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        return jsonify({"error": "Invalid request body"}), 400
+
     provider = data.get("provider")
     model = data.get("model")
     messages = data.get("messages", [])
@@ -1294,15 +1298,27 @@ def admin_llm_chat():
             }
 
         elif provider == "cerebras":
+            api_key = os.getenv("CEREBRAS_API_KEY")
+            if not api_key:
+                return jsonify({"error": "CEREBRAS_API_KEY is not set in the server environment. Add it in Vercel → Project Settings → Environment Variables and redeploy."}), 500
+
             headers = {
-                "Authorization": f"Bearer {os.getenv('CEREBRAS_API_KEY')}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
             payload = {"model": model, "messages": messages, "temperature": 0.7}
-            r = requests.post("https://api.cerebras.ai/v1/chat/completions",
-                              json=payload, headers=headers, timeout=60)
+
+            try:
+                r = requests.post("https://api.cerebras.ai/v1/chat/completions",
+                                  json=payload, headers=headers, timeout=30)
+            except requests.exceptions.RequestException as net_err:
+                print(f"Cerebras network error: {net_err}")
+                return jsonify({"error": f"Could not reach Cerebras API: {net_err}"}), 502
+
             if r.status_code != 200:
-                return jsonify({"error": f"Cerebras API error: {r.status_code} — {r.text[:300]}"}), 500
+                print(f"Cerebras API error {r.status_code}: {r.text[:500]}")
+                return jsonify({"error": f"Cerebras API error {r.status_code}: {r.text[:300]}"}), 500
+
             result = r.json()
             reply = result["choices"][0]["message"]["content"]
             usage_raw = result.get("usage", {})
@@ -1318,7 +1334,9 @@ def admin_llm_chat():
         return jsonify({"success": True, "reply": reply, "usage": usage})
 
     except Exception as e:
+        import traceback
         print(f"LLM Playground error ({provider}/{model}): {e}")
+        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 
