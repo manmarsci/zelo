@@ -1259,13 +1259,9 @@ def admin_map():
 # this app. Last verified against provider docs: September 2026.
 LLM_MODELS = {
     "groq": [
-        {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B Versatile", "desc": "Meta's flagship, strong general reasoning"},
-        {"id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B Instant", "desc": "Fastest, lightweight tasks"},
         {"id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B", "desc": "OpenAI open-weight, strong reasoning"},
-        {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B", "desc": "Smaller OpenAI open-weight model"},
-        {"id": "qwen/qwen3-32b", "label": "Qwen 3 32B", "desc": "Strong multilingual + coding"},
-        {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Multimodal (text + image), 17B active params"},
-        {"id": "moonshotai/kimi-k2-instruct-0905", "label": "Kimi K2", "desc": "Moonshot AI's large agentic/coding model"},
+        {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B", "desc": "Smaller OpenAI open-weight model, faster"},
+        {"id": "qwen/qwen3.6-27b", "label": "Qwen 3.6 27B", "desc": "Groq's current recommended migration target for the retired Qwen3/Llama3.3/Scout models"},
     ],
     "openrouter": [
         {"id": "anthropic/claude-sonnet-4.5", "label": "Claude Sonnet 4.5", "desc": "Anthropic's flagship coding/reasoning model"},
@@ -1293,19 +1289,15 @@ PROVIDER_META = {
 
 # Models that can actually accept an IMAGE as input, for the courier-slip scanner.
 # This is intentionally a much shorter list than LLM_MODELS above — most text
-# models (llama-3.3-70b-versatile, gpt-oss-120b, deepseek/deepseek-chat, etc.)
-# cannot see images at all and will either error out or hallucinate a response
-# if you send one. Only list a model here once you've confirmed on the
-# provider's own docs that it supports image/vision input.
-#   - Groq: llama-4-maverick was deprecated Feb 20, 2026 in favor of gpt-oss-120b
-#     (text-only) — llama-4-scout is the only vision-capable Groq model left.
-#   - Cerebras: image input is Private Preview and ONLY on gemma-4-31b. It will
-#     403/404 unless your account has been granted preview access, separate
-#     from the billing/quota issue you're already seeing.
+# models (gpt-oss-120b, qwen3.6-27b, deepseek/deepseek-chat, etc.) cannot see
+# images at all and will either error out or hallucinate a response if you send
+# one. Only list a model here once you've confirmed on the provider's own docs
+# that it supports image/vision input.
+#   - Groq: as of June 17, 2026 Groq deprecated llama-4-scout (its only vision
+#     model) on free/developer tier, with no vision-capable replacement. Groq
+#     currently has NO working vision option unless you're on an Enterprise
+#     committed-spend plan — so it's left out of this list entirely.
 VISION_MODELS = {
-    "groq": [
-        {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Only vision-capable Groq model currently available"},
-    ],
     "openrouter": [
         {"id": "baidu/qianfan-ocr-fast:free", "label": "Qianfan OCR Fast (Free)", "desc": "Purpose-built for document OCR, no cost"},
         {"id": "thinkingmachines/inkling:free", "label": "Inkling 41B (Free)", "desc": "Strong general multimodal, no cost"},
@@ -1608,6 +1600,19 @@ Rules:
 def call_gemini_vision_with_retry(img_bytes, mime_type, model="gemini-3.5-flash", max_retries=3):
     if not gemini_client:
         raise RuntimeError("GEMINI_API_KEY is not set on the server.")
+
+    # Gemini 3.x models use thinking_level; Gemini 2.5 models don't support
+    # thinking_level at all (they use the older thinking_budget) and will
+    # return a 400 error if you send it. This is why 2.5-pro/2.5-flash/
+    # 2.5-flash-lite were failing while 3.5-flash worked fine.
+    if model.startswith("gemini-3"):
+        thinking_config = genai_types.ThinkingConfig(thinking_level=genai_types.ThinkingLevel.LOW)
+    else:
+        # 0 disables thinking on Flash/Flash-Lite; 2.5 Pro can't go below 128
+        # and will clamp/reject 0, so give it a small non-zero budget instead.
+        budget = 128 if model == "gemini-2.5-pro" else 0
+        thinking_config = genai_types.ThinkingConfig(thinking_budget=budget)
+
     for attempt in range(max_retries):
         try:
             resp = gemini_client.models.generate_content(
@@ -1619,7 +1624,7 @@ def call_gemini_vision_with_retry(img_bytes, mime_type, model="gemini-3.5-flash"
                 config=genai_types.GenerateContentConfig(
                     temperature=0.0,
                     response_mime_type="application/json",
-                    thinking_config=genai_types.ThinkingConfig(thinking_level=genai_types.ThinkingLevel.LOW)
+                    thinking_config=thinking_config
                 )
             )
             if hasattr(resp, "usage_metadata") and resp.usage_metadata:
@@ -1649,13 +1654,14 @@ def admin_smart_scan():
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
 
-    selected_model = request.form.get('model', 'meta-llama/llama-4-scout-17b-16e-instruct')
+    selected_model = request.form.get('model', 'openrouter/free')
     # 'provider' is the new, explicit way to pick a backend. Falls back to
     # sniffing the old 'openrouter/'-prefix convention so any existing
-    # frontend that hasn't been updated yet keeps working.
+    # frontend that hasn't been updated yet keeps working. Defaults to
+    # openrouter (not groq) since Groq has no working vision model right now.
     provider = request.form.get('provider')
     if not provider:
-        provider = "openrouter" if selected_model.startswith("openrouter/") else "groq"
+        provider = "openrouter"
 
     try:
         img_bytes = file.read()
