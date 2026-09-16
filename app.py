@@ -1446,12 +1446,18 @@ def admin_llm_chat():
     provider = data.get("provider")
     model = data.get("model")
     messages = data.get("messages", [])
+    # Without an explicit cap, OpenRouter (and some other providers) falls back
+    # to a very large default output ceiling and reserves credit for the FULL
+    # ceiling upfront, even for a one-line reply -- causing a 402 on accounts
+    # with a modest balance. 2048 is generous for a chat reply while staying
+    # affordable; the frontend can override it via max_tokens if needed.
+    max_tokens = data.get("max_tokens", 2048)
 
     if not provider or not model or not messages:
         return jsonify({"error": "provider, model, and messages are required"}), 400
 
     try:
-        reply, usage = _call_llm(provider, model, messages)
+        reply, usage = _call_llm(provider, model, messages, max_tokens=max_tokens)
         return jsonify({"success": True, "reply": reply, "usage": usage})
     except Exception as e:
         import traceback
