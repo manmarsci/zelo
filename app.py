@@ -1267,10 +1267,6 @@ LLM_MODELS = {
         {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Multimodal (text + image), 17B active params"},
         {"id": "moonshotai/kimi-k2-instruct-0905", "label": "Kimi K2", "desc": "Moonshot AI's large agentic/coding model"},
     ],
-    "cerebras": [
-        {"id": "gpt-oss-120b", "label": "GPT-OSS 120B", "desc": "OpenAI open-weight on Cerebras wafer-scale speed"},
-        {"id": "qwen-3.8-27b", "label": "Qwen 3.8 27B", "desc": "Current public-endpoint Qwen tier on Cerebras"},
-    ],
     "openrouter": [
         {"id": "anthropic/claude-sonnet-4.5", "label": "Claude Sonnet 4.5", "desc": "Anthropic's flagship coding/reasoning model"},
         {"id": "openai/gpt-5.1", "label": "GPT-5.1", "desc": "OpenAI's latest flagship"},
@@ -1290,7 +1286,6 @@ LLM_MODELS = {
 
 PROVIDER_META = {
     "groq": {"label": "⚡ Groq", "color": "#f97316"},
-    "cerebras": {"label": "🧠 Cerebras", "color": "#8b5cf6"},
     "openrouter": {"label": "🌐 OpenRouter", "color": "#06b6d4"},
     "gemini": {"label": "✨ Gemini", "color": "#3b82f6"},
 }
@@ -1310,9 +1305,6 @@ PROVIDER_META = {
 VISION_MODELS = {
     "groq": [
         {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "desc": "Only vision-capable Groq model currently available"},
-    ],
-    "cerebras": [
-        {"id": "gemma-4-31b", "label": "Gemma 4 31B", "desc": "Vision is Private Preview — needs Cerebras to grant access on your account"},
     ],
     "openrouter": [
         {"id": "baidu/qianfan-ocr-fast:free", "label": "Qianfan OCR Fast (Free)", "desc": "Purpose-built for document OCR, no cost"},
@@ -1340,7 +1332,7 @@ def _call_llm(provider, model, messages, max_tokens=None):
             raise RuntimeError("GROQ_API_KEY is not set on the server.")
         resp = groq_client.chat.completions.create(
             model=model, messages=messages, temperature=0.7,
-            max_tokens=max_tokens
+            max_tokens=max_tokens, timeout=30
         )
         reply = resp.choices[0].message.content
         usage = {
@@ -1769,7 +1761,8 @@ def admin_smart_scan():
                 temperature=0.0,
                 max_completion_tokens=500,
                 response_format={"type": "json_object"},
-                extra_body={"reasoning_effort": "none"}
+                extra_body={"reasoning_effort": "none"},
+                timeout=30
             )
             content = response.choices[0].message.content.strip()
 
@@ -1793,7 +1786,9 @@ def admin_smart_scan():
         })
 
     except Exception as e:
-        print(f"Vision API Error: {e}")
+        import traceback
+        print(f"Vision API Error ({provider}/{selected_model}): {e}")
+        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 
