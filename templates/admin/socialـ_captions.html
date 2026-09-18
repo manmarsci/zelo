@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.sc-block { background:#fff; border:1px solid #e8e1d1; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem; }
+.sc-block h3 { margin-top:0; color:#8b7355; }
+.sc-text { background:#fbf7ec; padding:.85rem 1rem; border-radius:6px; font-size:.9rem; white-space:pre-wrap; margin-bottom:.6rem; }
+.sc-copy-btn { padding:.4rem .9rem; font-size:.8rem; }
+.sc-form { background:#fff; padding:1rem 1.25rem; border-radius:8px; border:1px solid #e8e1d1; margin-bottom:1.5rem; display:flex; gap:.75rem; align-items:end; }
+.sc-form label { display:block; font-size:.8rem; font-weight:600; margin-bottom:.3rem; }
+.sc-form input { padding:.6rem .8rem; border:1px solid #d8d2c4; border-radius:6px; width:340px; }
+</style>
+
+<h1>Social Captions — {{ product.name }}</h1>
+<p class="muted">Discount: {{ ctx.discount }}% · Fabric: {{ ctx.fabric }} · Stock: {{ ctx.piece_count }} pieces</p>
+
+<form method="get" class="sc-form">
+  <div>
+    <label>Standout detail (e.g. "heavy embroidered lace patch")</label>
+    <input type="text" name="detail" value="{{ standout_detail }}" />
+  </div>
+  <button type="submit" class="btn btn-primary">Regenerate</button>
+</form>
+
+{% macro block(title, text) %}
+<div class="sc-block">
+  <h3>{{ title }}</h3>
+  <div class="sc-text" id="text-{{ loop.index if loop else title|replace(' ','') }}">{{ text }}</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy</button>
+</div>
+{% endmacro %}
+
+<div class="sc-block">
+  <h3>🎵 TikTok</h3>
+  <div class="sc-text">Hook: POV: your friend paid full price for the exact same fabric you're about to get for {{ ctx.discount }}% off</div>
+  <div class="sc-text">100% original {{ ctx.brand }} factory leftover stock — same {{ ctx.fabric }} fabric, same {{ ctx.standout_detail }}, {{ ctx.discount }}% off retail. Comment "PRICE" and we'll DM you 👇
+#PakistaniFashion #LawnSuits #TikTokFinds #DealAlert #zeloliveboutique</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy Caption</button>
+</div>
+
+<div class="sc-block">
+  <h3>📸 Instagram Reels</h3>
+  <div class="sc-text">Hook: This {{ ctx.brand }} suit retails at PKR {{ ctx.original_price }}. We're selling it for PKR {{ ctx.sale_price }}. Here's why.</div>
+  <div class="sc-text">This is 100% original {{ ctx.brand }} leftover stock — same {{ ctx.fabric }} fabric, same {{ ctx.standout_detail }}, same quality control as their full-price collection. It just never made it to a retail shelf.
+
+Comment "PRICE" and we'll DM you the details 👇</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy Caption</button>
+  <div class="sc-text">#pakistanifashion #unstitchedsuits #onlineshoppingpakistan #brandedclothing #leftoverstock #lawnsuits #suitpieces #designerpatches #lahorefashion #karachifashion #islamabadshopping #zeloliveboutique #zelolive</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy Hashtags</button>
+</div>
+
+<div class="sc-block">
+  <h3>▶️ YouTube Shorts</h3>
+  <div class="sc-text">Hook: Why is this original {{ ctx.brand }} suit {{ ctx.discount }}% cheaper than retail? (It's not fake — here's the real reason)</div>
+  <div class="sc-text">{{ ctx.product_name }} — {{ ctx.discount }}% off retail. 100% authentic surplus stock, same {{ ctx.fabric }} fabric and embroidery as full-price {{ ctx.brand }} collections. Comment below or find us on Instagram/Facebook to order.
+#Shorts #PakistaniFashion #LawnSuits #zeloliveboutique</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy Description</button>
+</div>
+
+<div class="sc-block">
+  <h3>👍 Facebook Reels</h3>
+  <div class="sc-text">Hook: {{ ctx.brand }} Original — {{ ctx.discount }}% Off — Limited Pieces Only</div>
+  <div class="sc-text">100% original {{ ctx.brand }} leftover stock. Same {{ ctx.fabric }} fabric, same {{ ctx.standout_detail }}, {{ ctx.discount }}% below retail price. Limited pieces of this print available.
+
+Comment "PRICE" or message the Page to order.
+#pakistanifashion #lawnsuits #zeloliveboutique</div>
+  <button class="btn btn-outline sc-copy-btn" onclick="copyBlock(this)">📋 Copy Caption</button>
+</div>
+
+<script>
+function copyBlock(btn) {
+  const text = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = original, 1500);
+  });
+}
+</script>
+{% endblock %}

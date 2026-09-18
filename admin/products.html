@@ -27,6 +27,7 @@
           <form method="post" action="{{ url_for('admin_product_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this product?')">
             <button class="btn-link text-danger">Delete</button>
           </form>
+          <a href="{{ url_for('admin_social_captions', pid=p.id) }}" style="margin-left:.5rem;">📱 Captions</a>
         </td>
       </tr>
     {% endfor %}

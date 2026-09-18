@@ -1854,6 +1854,34 @@ def admin_postex_tracking():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ---------- Admin: Social Media Posting ----------
+
+@app.route("/admin/product/<int:pid>/social-captions")
+@admin_required
+def admin_social_captions(pid):
+    product = query_one("SELECT * FROM products WHERE id = ?", [pid])
+    if not product:
+        abort(404)
+
+    original = float(product["original_price"])
+    sale = float(product["sale_price"]) if product["sale_price"] else original
+    discount = round(((original - sale) / original) * 100) if original else 0
+
+    standout_detail = request.args.get("detail", "").strip() or "premium embroidered detail"
+
+    ctx = {
+        "product_name": product["name"],
+        "brand": product.get("brand_name") or "ZELO LIVE",
+        "fabric": product.get("fabric") or "premium",
+        "discount": discount,
+        "original_price": int(original),
+        "sale_price": int(sale),
+        "piece_count": product["stock"],
+        "standout_detail": standout_detail,
+    }
+    return render_template("admin/social_captions.html", product=product, ctx=ctx,
+                           standout_detail=standout_detail)
+
 
 # ---------- Public Customer Tracking ----------
 @app.route("/track")
