@@ -270,6 +270,14 @@
                 <p>{{ product.description }}</p>
             </div>
             {% endif %}
+            
+            <!-- Bundle Info (compact) -->
+            {% if product.bundle_info %}
+            <div id="bundleBox" style="margin-bottom:2rem; display:none;">
+                <h3 style="color:#1a1a1a; font-size:1.2rem; margin-bottom:0.75rem;">What's Included</h3>
+                <div id="bundleDisplay"></div>
+            </div>
+            {% endif %}
 
             <!-- Stock urgency -->
             {% if product.stock <= 0 %}
@@ -403,17 +411,7 @@
                 allowfullscreen></iframe>
         </div>
     </div>
-    {% endif %}
-
-    <!-- Bundle Information -->
-    {% if product.bundle_info %}
-    <div class="pp-bundle">
-        <h3>What's Included in This Bundle</h3>
-        <div id="bundleDisplay"></div>
-    </div>
-    {% endif %}
-
-</div>
+    {% endif %}    
 
 <!-- Lightbox -->
 <div class="pp-lightbox" id="ppLightbox" onclick="if(event.target===this) ppCloseLightbox()">
@@ -476,23 +474,10 @@ document.addEventListener('keydown', function(e) {
 // ---------- Bundle info: spec rows + full display ----------
 {% if product.bundle_info %}
 const bundleInfo = {{ product.bundle_info | safe }};
-
-const specRows = document.getElementById('ppSpecBundleRows');
-if (specRows && bundleInfo.measurements) {
-    let rowsHtml = '';
-    if (bundleInfo.measurements.kameez) {
-        rowsHtml += `<div class="pp-spec-row"><span>Kameez Length</span><span>${bundleInfo.measurements.kameez}</span></div>`;
-    }
-    if (bundleInfo.measurements.dupatta) {
-        rowsHtml += `<div class="pp-spec-row"><span>Dupatta Length</span><span>${bundleInfo.measurements.dupatta}</span></div>`;
-    }
-    specRows.innerHTML = rowsHtml;
-}
-
 const bundleDisplay = document.getElementById('bundleDisplay');
-if (bundleDisplay) {
-    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.25rem;">';
+const bundleBox = document.getElementById('bundleBox');
 
+if (bundleInfo && bundleDisplay) {
     const typeLabels = {
         'complete_3pc': 'Complete 3-Piece Suit',
         'complete_4pc': 'Complete 4-Piece Suit',
@@ -500,39 +485,44 @@ if (bundleDisplay) {
         'patches_laces': 'Patches & Laces Bundle',
         'standard': 'Standard Product'
     };
+    const pieceNames = {
+        'kameez': 'Kameez (Shirt)',
+        'dupatta': 'Dupatta',
+        'shalwar': 'Shalwar/Trouser',
+        'patches': 'Patches',
+        'laces': 'Laces'
+    };
 
-    html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px; border-left:4px solid #c9a961;">';
-    html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Product Type</strong>';
-    html += '<span style="color:#666;">' + (typeLabels[bundleInfo.type] || bundleInfo.type) + '</span>';
-    html += '</div>';
+    const pieces = bundleInfo.pieces || [];
+    const m = bundleInfo.measurements || {};
+    // Don't show an empty box for plain "standard" products
+    const hasContent = bundleInfo.type !== 'standard' || pieces.length > 0 || m.kameez || m.dupatta;
 
-    if (bundleInfo.pieces && bundleInfo.pieces.length > 0) {
-        html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px;">';
-        html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Included Pieces</strong>';
-        html += '<ul style="margin:0; padding-left:1.2rem; color:#666;">';
-        bundleInfo.pieces.forEach(piece => {
-            const pieceNames = {
-                'kameez': 'Kameez (Shirt)',
-                'dupatta': 'Dupatta',
-                'shalwar': 'Shalwar/Trouser',
-                'patches': 'Patches',
-                'laces': 'Laces'
-            };
-            html += '<li style="margin-bottom:0.4rem;">' + (pieceNames[piece] || piece) + '</li>';
-        });
-        html += '</ul></div>';
-    }
+    if (hasContent) {
+        let html = '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px; border-left:4px solid #c9a961;">';
 
-    if (bundleInfo.measurements && (bundleInfo.measurements.kameez || bundleInfo.measurements.dupatta)) {
-        html += '<div style="background:#f9f9f9; padding:1.25rem; border-radius:8px;">';
-        html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.5rem;">Measurements</strong>';
-        if (bundleInfo.measurements.kameez) html += '<div style="color:#666; margin-bottom:0.4rem;">Kameez: ' + bundleInfo.measurements.kameez + '</div>';
-        if (bundleInfo.measurements.dupatta) html += '<div style="color:#666;">Dupatta: ' + bundleInfo.measurements.dupatta + '</div>';
+        html += '<div style="margin-bottom:0.75rem;"><strong style="color:#1a1a1a;">Type:</strong> ' +
+                '<span style="color:#666;">' + (typeLabels[bundleInfo.type] || bundleInfo.type) + '</span></div>';
+
+        if (pieces.length > 0) {
+            html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.4rem;">Included Pieces</strong>';
+            html += '<ul style="margin:0 0 0.75rem 0; padding-left:1.2rem; color:#666;">';
+            pieces.forEach(p => {
+                html += '<li style="margin-bottom:0.3rem;">' + (pieceNames[p] || p) + '</li>';
+            });
+            html += '</ul>';
+        }
+
+        if (m.kameez || m.dupatta) {
+            html += '<strong style="color:#1a1a1a; display:block; margin-bottom:0.4rem;">Measurements</strong>';
+            if (m.kameez) html += '<div style="color:#666; margin-bottom:0.3rem;">Kameez: ' + m.kameez + '</div>';
+            if (m.dupatta) html += '<div style="color:#666;">Dupatta: ' + m.dupatta + '</div>';
+        }
+
         html += '</div>';
+        bundleDisplay.innerHTML = html;
+        bundleBox.style.display = 'block';
     }
-
-    html += '</div>';
-    bundleDisplay.innerHTML = html;
 }
 {% endif %}
 </script>
