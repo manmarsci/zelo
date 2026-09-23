@@ -861,7 +861,7 @@ def admin_product_form(pid=None):
                 (name, slug, description, fabric, brand_id, category_id,
                  original_price, sale_price, stock, sizes, colors,
                  is_new_arrival, is_popular, is_sale, is_active, features, bundle_info, video_url)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, data)
             new_p = query_one("SELECT id FROM products WHERE slug = ?", [slug])
             pid = new_p["id"]
