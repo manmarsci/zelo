@@ -22,6 +22,7 @@ CREATE SEQUENCE IF NOT EXISTS orders_id_seq START 1;
 CREATE SEQUENCE IF NOT EXISTS order_items_id_seq START 1;
 CREATE SEQUENCE IF NOT EXISTS coupons_id_seq START 1;
 CREATE SEQUENCE IF NOT EXISTS cart_id_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS courier_slips_id_seq START 1;
 
 -- Users (customers + admin)
 CREATE TABLE IF NOT EXISTS users (
@@ -31,6 +32,10 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR NOT NULL,
     phone VARCHAR,
     role VARCHAR DEFAULT 'customer',
+    city VARCHAR,
+    address VARCHAR,
+    province VARCHAR,
+    postal_code VARCHAR,
     created_at TIMESTAMP DEFAULT current_timestamp
 );
 
@@ -82,9 +87,13 @@ CREATE TABLE IF NOT EXISTS products (
     is_popular BOOLEAN DEFAULT FALSE,
     is_sale BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    features VARCHAR DEFAULT '[]',
+    bundle_info VARCHAR,
+    video_url VARCHAR,
     views INTEGER DEFAULT 0,
     sold INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT current_timestamp
+    created_at TIMESTAMP DEFAULT current_timestamp,
+    updated_at TIMESTAMP DEFAULT current_timestamp
 );
 
 -- Product images
@@ -115,6 +124,7 @@ CREATE TABLE IF NOT EXISTS orders (
     total DECIMAL(10,2) NOT NULL,
     status VARCHAR DEFAULT 'Pending',
     payment_method VARCHAR DEFAULT 'COD',
+    payment_proof_url VARCHAR,
     coupon_code VARCHAR,
     notes TEXT,
     created_at TIMESTAMP DEFAULT current_timestamp
@@ -155,6 +165,21 @@ CREATE TABLE IF NOT EXISTS cart (
     quantity INTEGER DEFAULT 1,
     size VARCHAR,
     color VARCHAR
+);
+
+-- Courier slips (used by admin courier scanner / customer edit / add customer flows)
+CREATE TABLE IF NOT EXISTS courier_slips (
+    id INTEGER DEFAULT nextval('courier_slips_id_seq') PRIMARY KEY,
+    customer_name VARCHAR,
+    customer_phone VARCHAR,
+    city VARCHAR,
+    address VARCHAR,
+    tracking_number VARCHAR UNIQUE,
+    courier_name VARCHAR,
+    description VARCHAR,
+    charges VARCHAR,
+    slip_date VARCHAR,
+    created_at TIMESTAMP DEFAULT current_timestamp
 );
 """
 
